@@ -24,6 +24,8 @@ app-name
 *.swp
 .DS_Store
 
-/bin
-/log
+/bin/
+log/
+
+
 config.yaml
