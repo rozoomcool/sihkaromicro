@@ -1,0 +1,28 @@
+# Compiled binaries and package files
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+
+# Test binaries and coverage reports
+*.test
+*.out
+
+# Go module vendor directory 
+# (Commonly ignored; un-comment if you prefer to commit dependencies)
+# vendor/
+
+# Project-specific binaries
+# Replace 'app-name' with your actual binary name
+app-name
+
+# IDE and System files (often moved to global .gitignore)
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+/bin
+config.yaml

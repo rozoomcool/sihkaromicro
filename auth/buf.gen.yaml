@@ -1,0 +1,21 @@
+version: v2
+plugins:
+  # 1. Генерация Go структур
+  - plugin: buf.build/protocolbuffers/go:v1.31.0
+    out: generated
+    opt:
+      - paths=generated/pb/auth/v1
+
+  # 2. Генерация gRPC кода (сервер/клиент)
+  - plugin: buf.build/grpc/go:v1.3.0
+    out: generated
+    opt:
+      - paths=generated/pb/auth/v1
+      - require_unimplemented_servers=false # Разрешить не реализовывать все методы сразу
+
+  # 3. (Опционально) Валидация полей (protoc-gen-validate)
+  - plugin: buf.build/bufbuild/validate-go:v1.0.0
+    out: generated
+    opt:
+      - paths=generated/pb/auth/v1
+      - lang=go
