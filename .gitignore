@@ -25,4 +25,5 @@ app-name
 .DS_Store
 
 /bin
+/log
 config.yaml
