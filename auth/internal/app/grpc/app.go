@@ -29,7 +29,7 @@ func New(
 	loggingOpts := []logging.Option{
 		logging.WithLogOnEvents(
 			//logging.StartCall, logging.FinishCall,
-			logging.PayloadReceived, logging.PayloadSent,
+			logging.StartCall, logging.FinishCall,
 		),
 		// Add any other option (check functions starting with logging.With).
 	}
