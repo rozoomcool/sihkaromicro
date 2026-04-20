@@ -3,14 +3,11 @@ package main
 import (
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 
 	"github.com/rozoomcool/sihkaromicro/auth/internal/app"
 	"github.com/rozoomcool/sihkaromicro/auth/internal/config"
-	"github.com/rozoomcool/sihkaromicro/auth/pkg/database"
 	"github.com/rozoomcool/sihkaromicro/auth/pkg/logger"
-	"github.com/rozoomcool/sihkaromicro/auth/pkg/logger/sl"
 )
 
 func main() {
@@ -21,22 +18,7 @@ func main() {
 
 	log.Info("Configs loaded")
 
-	db, err := database.New(cfg.DB)
-	if err != nil {
-		log.Error("Error when loading database", sl.Err(err))
-		panic(err)
-	}
-	if err = database.AutoMigrate(db); err != nil {
-		log.Error("Failed auto migrate", sl.Err(err))
-	}
-	log.Info("Database successfully initialized")
-
-	port, err := strconv.Atoi(cfg.GRPC.Port)
-	if err != nil {
-		panic(err)
-	}
-
-	app := app.NewApp(log, db, port, cfg.JWT)
+	app := app.NewApp(log, cfg)
 
 	go func() { app.GRPCServer.MustRun() }()
 

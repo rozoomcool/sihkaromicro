@@ -6,11 +6,10 @@ import (
 	"log/slog"
 	"net"
 
-	authgrpc "github.com/rozoomcool/sihkaromicro/auth/internal/grpc/auth"
-	"github.com/rozoomcool/sihkaromicro/auth/internal/service"
-
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
+	"github.com/rozoomcool/sihkaromicro/auth/internal/config"
+	"github.com/rozoomcool/sihkaromicro/auth/internal/handler"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -19,14 +18,13 @@ import (
 type App struct {
 	log        *slog.Logger
 	gRPCServer *grpc.Server
-	port       int
+	cfg        *config.Config
 }
 
 // New creates new gRPC server app.
 func New(
 	log *slog.Logger,
-	authService service.AuthService,
-	port int,
+	cfg *config.Config,
 ) *App {
 	loggingOpts := []logging.Option{
 		logging.WithLogOnEvents(
@@ -49,12 +47,14 @@ func New(
 		logging.UnaryServerInterceptor(InterceptorLogger(log), loggingOpts...),
 	))
 
-	authgrpc.Register(gRPCServer, authService)
+	authHandler := handler.NewAuthGrpc(cfg)
+
+	authHandler.Register(gRPCServer)
 
 	return &App{
 		log:        log,
 		gRPCServer: gRPCServer,
-		port:       port,
+		cfg:        cfg,
 	}
 }
 
@@ -77,7 +77,7 @@ func (a *App) MustRun() {
 func (a *App) Run() error {
 	const op = "grpcapp.Run"
 
-	l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", a.port))
+	l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%v", a.cfg.GRPC.Port))
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
@@ -96,7 +96,7 @@ func (a *App) Stop() {
 	const op = "grpcapp.Stop"
 
 	a.log.With(slog.String("op", op)).
-		Info("stopping gRPC server", slog.Int("port", a.port))
+		Info("stopping gRPC server", slog.String("port", a.cfg.GRPC.Port))
 
 	a.gRPCServer.GracefulStop()
 }
