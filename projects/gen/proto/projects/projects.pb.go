@@ -25,7 +25,7 @@ const (
 // Project model
 type Project struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	OwnerId       string                 `protobuf:"bytes,2,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
 	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -64,11 +64,11 @@ func (*Project) Descriptor() ([]byte, []int) {
 	return file_proto_projects_projects_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Project) GetId() string {
+func (x *Project) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
-	return ""
+	return 0
 }
 
 func (x *Project) GetOwnerId() string {
@@ -102,7 +102,7 @@ func (x *Project) GetUpdatedAt() *timestamppb.Timestamp {
 // Create project request data
 type CreateProjectRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Title         string                 `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -137,9 +137,9 @@ func (*CreateProjectRequest) Descriptor() ([]byte, []int) {
 	return file_proto_projects_projects_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *CreateProjectRequest) GetName() string {
+func (x *CreateProjectRequest) GetTitle() string {
 	if x != nil {
-		return x.Name
+		return x.Title
 	}
 	return ""
 }
@@ -192,7 +192,7 @@ func (x *ProjectResponse) GetProject() *Project {
 // Get Project request data
 type GetProjectRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ProjectId     int64                  `protobuf:"varint,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -227,11 +227,11 @@ func (*GetProjectRequest) Descriptor() ([]byte, []int) {
 	return file_proto_projects_projects_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetProjectRequest) GetId() string {
+func (x *GetProjectRequest) GetProjectId() int64 {
 	if x != nil {
-		return x.Id
+		return x.ProjectId
 	}
-	return ""
+	return 0
 }
 
 // List project request data
@@ -343,7 +343,7 @@ func (x *ListProjectsResponse) GetTotal() int32 {
 // Delete project request data
 type DeleteProjectRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ProjectId     int64                  `protobuf:"varint,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -378,11 +378,11 @@ func (*DeleteProjectRequest) Descriptor() ([]byte, []int) {
 	return file_proto_projects_projects_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *DeleteProjectRequest) GetId() string {
+func (x *DeleteProjectRequest) GetProjectId() int64 {
 	if x != nil {
-		return x.Id
+		return x.ProjectId
 	}
-	return ""
+	return 0
 }
 
 // Delete project response data
@@ -433,7 +433,7 @@ func (x *DeleteProjectResponse) GetSuccess() bool {
 // Check access request data
 type CheckAccessRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ProjectId     int64                  `protobuf:"varint,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"` // user_id не передаём — берётся из токена
+	ProjectId     int64                  `protobuf:"varint,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -526,27 +526,29 @@ const file_proto_projects_projects_proto_rawDesc = "" +
 	"\n" +
 	"\x1dproto/projects/projects.proto\x12\bprojects\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc0\x01\n" +
 	"\aProject\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x19\n" +
 	"\bowner_id\x18\x02 \x01(\tR\aownerId\x12\x14\n" +
 	"\x05title\x18\x03 \x01(\tR\x05title\x129\n" +
 	"\n" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"*\n" +
-	"\x14CreateProjectRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\">\n" +
+	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\",\n" +
+	"\x14CreateProjectRequest\x12\x14\n" +
+	"\x05title\x18\x01 \x01(\tR\x05title\">\n" +
 	"\x0fProjectResponse\x12+\n" +
-	"\aproject\x18\x01 \x01(\v2\x11.projects.ProjectR\aproject\"#\n" +
-	"\x11GetProjectRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"F\n" +
+	"\aproject\x18\x01 \x01(\v2\x11.projects.ProjectR\aproject\"2\n" +
+	"\x11GetProjectRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\x03R\tprojectId\"F\n" +
 	"\x13ListProjectsRequest\x12\x12\n" +
 	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\"[\n" +
 	"\x14ListProjectsResponse\x12-\n" +
 	"\bprojects\x18\x01 \x03(\v2\x11.projects.ProjectR\bprojects\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x05R\x05total\"&\n" +
-	"\x14DeleteProjectRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"1\n" +
+	"\x05total\x18\x02 \x01(\x05R\x05total\"5\n" +
+	"\x14DeleteProjectRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\x03R\tprojectId\"1\n" +
 	"\x15DeleteProjectResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\"3\n" +
 	"\x12CheckAccessRequest\x12\x1d\n" +
@@ -561,7 +563,7 @@ const file_proto_projects_projects_proto_rawDesc = "" +
 	"GetProject\x12\x1b.projects.GetProjectRequest\x1a\x19.projects.ProjectResponse\x12M\n" +
 	"\fListProjects\x12\x1d.projects.ListProjectsRequest\x1a\x1e.projects.ListProjectsResponse\x12P\n" +
 	"\rDeleteProject\x12\x1e.projects.DeleteProjectRequest\x1a\x1f.projects.DeleteProjectResponse\x12J\n" +
-	"\vCheckAccess\x12\x1c.projects.CheckAccessRequest\x1a\x1d.projects.CheckAccessResponseB9Z7gihub.com/rozoomcool/sihkaromicro/projects/gen/projectsb\x06proto3"
+	"\vCheckAccess\x12\x1c.projects.CheckAccessRequest\x1a\x1d.projects.CheckAccessResponseB:Z8github.com/rozoomcool/sihkaromicro/projects/gen/projectsb\x06proto3"
 
 var (
 	file_proto_projects_projects_proto_rawDescOnce sync.Once

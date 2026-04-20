@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 
 	"github.com/rozoomcool/sihkaromicro/projects/internal/dto"
 	"github.com/rozoomcool/sihkaromicro/projects/internal/model"
@@ -35,6 +36,9 @@ func (p *projectService) CanManage(ctx context.Context, ownerID string, projectI
 
 // Create implements ProjectService.
 func (p *projectService) Create(ctx context.Context, ownerID string, title string) (*model.Project, error) {
+	if title == "" {
+		return nil, errors.New("Title must be not empty")
+	}
 	project := &model.Project{
 		OwnerID: ownerID,
 		Title:   title,

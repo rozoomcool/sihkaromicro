@@ -35,18 +35,45 @@ func (p *ProjectGRPCHandler) CheckAccess(ctx context.Context, in *pb.CheckAccess
 	return &pb.CheckAccessResponse{HasAccess: ok}, nil
 }
 
-func (p *ProjectGRPCHandler) CreateProject(context.Context, *pb.CreateProjectRequest) (*pb.ProjectResponse, error) {
-	panic("")
+func (p *ProjectGRPCHandler) CreateProject(ctx context.Context, in *pb.CreateProjectRequest) (*pb.ProjectResponse, error) {
+	userID := interceptor.MustUserIDFromCtx(ctx)
+	project, err := p.service.Create(ctx, userID, in.Title)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "Bad request: "+err.Error())
+	}
+	return &pb.ProjectResponse{
+		Project: project.ToProto(),
+	}, nil
 }
 
-func (p *ProjectGRPCHandler) DeleteProject(context.Context, *pb.DeleteProjectRequest) (*pb.DeleteProjectResponse, error) {
-	panic("")
+func (p *ProjectGRPCHandler) DeleteProject(ctx context.Context, in *pb.DeleteProjectRequest) (*pb.DeleteProjectResponse, error) {
+	userID := interceptor.MustUserIDFromCtx(ctx)
+	err := p.service.Delete(ctx, userID, in.ProjectId)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "Bad request: "+err.Error())
+	}
+	return &pb.DeleteProjectResponse{Success: true}, nil
+
 }
 
-func (p *ProjectGRPCHandler) GetProject(context.Context, *pb.GetProjectRequest) (*pb.ProjectResponse, error) {
-	panic("")
+func (p *ProjectGRPCHandler) GetProject(ctx context.Context, in *pb.GetProjectRequest) (*pb.ProjectResponse, error) {
+	userID := interceptor.MustUserIDFromCtx(ctx)
+	project, err := p.service.Get(ctx, userID, in.ProjectId)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "Bad request: "+err.Error())
+	}
+	return &pb.ProjectResponse{Project: project.ToProto()}, nil
 }
 
-func (p *ProjectGRPCHandler) ListProjects(context.Context, *pb.ListProjectsRequest) (*pb.ListProjectsResponse, error) {
-	panic("")
+func (p *ProjectGRPCHandler) ListProjects(ctx context.Context, in *pb.ListProjectsRequest) (*pb.ListProjectsResponse, error) {
+	userID := interceptor.MustUserIDFromCtx(ctx)
+	page, err := p.service.List(ctx, userID, int(in.Page), int(in.PageSize))
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "Bad request: "+err.Error())
+	}
+	projects := make([]*pb.Project, len(page.Data))
+	for i, v := range page.Data {
+		projects[i] = v.ToProto()
+	}
+	return &pb.ListProjectsResponse{Total: int32(page.Total), Projects: projects}, nil
 }

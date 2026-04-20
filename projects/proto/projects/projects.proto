@@ -2,10 +2,9 @@ syntax = "proto3";
 
 package projects;
 
-option go_package = "gihub.com/rozoomcool/sihkaromicro/projects/gen/projects";
+option go_package = "github.com/rozoomcool/sihkaromicro/projects/gen/projects";
 
 import "google/protobuf/timestamp.proto";
-
 
 // Project service
 service ProjectsService {
@@ -24,7 +23,7 @@ service ProjectsService {
 
 // Project model
 message Project {
-  string                    id         = 1;
+  int64                     id         = 1;
   string                    owner_id   = 2;
   string                    title      = 3;
   google.protobuf.Timestamp created_at = 4;
@@ -33,7 +32,7 @@ message Project {
 
 // Create project request data
 message CreateProjectRequest {
-  string name = 1;
+  string title = 1;
 }
 
 // Project response
@@ -43,7 +42,7 @@ message ProjectResponse {
 
 // Get Project request data
 message GetProjectRequest {
-  string id = 1;
+  int64 project_id = 1;
 }
 
 // List project request data
@@ -60,7 +59,7 @@ message ListProjectsResponse {
 
 // Delete project request data
 message DeleteProjectRequest {
-  string id = 1;
+  int64 project_id = 1;
 }
 
 // Delete project response data
@@ -71,7 +70,6 @@ message DeleteProjectResponse {
 // Check access request data
 message CheckAccessRequest {
   int64 project_id = 1;
-  // user_id не передаём — берётся из токена
 }
 
 // Check access response data
