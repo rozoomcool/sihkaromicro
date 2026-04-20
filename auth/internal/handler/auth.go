@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// AuthHandler реализует gRPC сервис
+// AuthHandler implements auth grpc service
 type AuthHandler struct {
 	pb.UnimplementedAuthServer
 	cfg *config.Config
