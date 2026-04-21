@@ -47,7 +47,7 @@ func New(
 		}),
 	}
 
-	authInterceptor, err := interceptor.NewAuthInterceptor(context.Background(), cfg.Auth)
+	authInterceptor, err := interceptor.NewAuthInterceptor(context.Background(), cfg.Keycloak)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create auth interceptor: %v", err))
 	}

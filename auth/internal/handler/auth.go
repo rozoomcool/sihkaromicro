@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -29,10 +30,10 @@ func (h *AuthHandler) Register(server *grpc.Server) {
 
 func (h *AuthHandler) Login(ctx context.Context, in *pb.LoginRequest) (*pb.LoginResponse, error) {
 	resp, err := http.PostForm(
-		h.cfg.ProviderURL,
+		fmt.Sprintf("%v/realms/%v", h.cfg.Keycloak.Url, h.cfg.Keycloak.Realm),
 		url.Values{
 			"grant_type": {"password"},
-			"client_id":  {h.cfg.ClientID},
+			"client_id":  {h.cfg.Keycloak.ClientID},
 			"username":   {in.Username},
 			"password":   {in.Password},
 		},
@@ -62,10 +63,10 @@ func (h *AuthHandler) Login(ctx context.Context, in *pb.LoginRequest) (*pb.Login
 
 func (h *AuthHandler) Refresh(ctx context.Context, in *pb.RefreshRequest) (*pb.LoginResponse, error) {
 	resp, err := http.PostForm(
-		h.cfg.ProviderURL,
+		fmt.Sprintf("%v/realms/%v", h.cfg.Keycloak.Url, h.cfg.Keycloak.Realm),
 		url.Values{
 			"grant_type":    {"refresh_token"},
-			"client_id":     {h.cfg.ClientID},
+			"client_id":     {h.cfg.Keycloak.ClientID},
 			"refresh_token": {in.RefreshToken},
 		},
 	)

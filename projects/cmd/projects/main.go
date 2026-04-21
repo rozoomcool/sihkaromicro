@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -29,7 +30,7 @@ func main() {
 		log.Error("Failed auto migrate", sl.Err(err))
 	}
 	log.Info("Database successfully initialized")
-	log.Info(cfg.Auth.ProviderURL)
+	log.Info(fmt.Sprintf("%v/realms/%v", cfg.Keycloak.Url, cfg.Keycloak.Realm))
 
 	app := app.NewApp(log, db, cfg)
 

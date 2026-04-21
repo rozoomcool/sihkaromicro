@@ -1,21 +1,23 @@
 package config
 
 import (
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
 )
 
 type DBConf struct {
-	DBDSN           string        `mapstructure:"db-dsn"`
+	DSN             string        `mapstructure:"dsn"`
 	MaxIdleConns    int           `mapstructure:"max_idle_conns"`
 	MaxOpenConns    int           `mapstructure:"max_open_conns"`
 	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"`
 }
 
-type AuthCfg struct {
-	ProviderURL string `mapstructure:"providerURL"`
-	ClientID    string `mapstructure:"clientID"`
+type KeycloakCfg struct {
+	Url      string `mapstructure:"url"`
+	Realm    string `mapstructure:"realm"`
+	ClientID string `mapstructure:"clinetID"`
 }
 
 type Config struct {
@@ -25,12 +27,14 @@ type Config struct {
 		Port string `mapstructure:"port"`
 	} `mapstructure:"grpc"`
 
-	DB   DBConf  `mapstructure:"db"`
-	Auth AuthCfg `mapstructure:"auth"`
+	DB       DBConf      `mapstructure:"db"`
+	Keycloak KeycloakCfg `mapstructure:"keycloak"`
 }
 
 func MustLoad() *Config {
 	viper.SetConfigFile("configs/config.yaml")
+
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err != nil {

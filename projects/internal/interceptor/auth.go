@@ -3,6 +3,7 @@ package interceptor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -28,8 +29,8 @@ type AuthInterceptor struct {
 	verifier *oidc.IDTokenVerifier
 }
 
-func NewAuthInterceptor(ctx context.Context, cfg config.AuthCfg) (*AuthInterceptor, error) {
-	provider, err := oidc.NewProvider(ctx, cfg.ProviderURL)
+func NewAuthInterceptor(ctx context.Context, cfg config.KeycloakCfg) (*AuthInterceptor, error) {
+	provider, err := oidc.NewProvider(ctx, fmt.Sprintf("%v/realms/%v", cfg.Url, cfg.Realm))
 	if err != nil {
 		return nil, err
 	}

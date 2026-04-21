@@ -11,7 +11,7 @@ import (
 )
 
 func New(cfg config.DBConf) (*gorm.DB, error) {
-	db, err := gorm.Open(postgres.Open(cfg.DBDSN), &gorm.Config{
+	db, err := gorm.Open(postgres.Open(cfg.DSN), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info), // В проде: logger.Warn
 	})
 	if err != nil {

@@ -1,8 +1,16 @@
 package config
 
 import (
+	"strings"
+
 	"github.com/spf13/viper"
 )
+
+type KeycloakCfg struct {
+	Url      string `mapstructure:"url"`
+	Realm    string `mapstructure:"realm"`
+	ClientID string `mapstructure:"clinetID"`
+}
 
 type Config struct {
 	Env     string `mapstructure:"env"`
@@ -10,12 +18,12 @@ type Config struct {
 	GRPC    struct {
 		Port string `mapstructure:"port"`
 	} `mapstructure:"grpc"`
-	ProviderURL string `mapstructure:"providerURL"`
-	ClientID    string `mapstructure:"clientID"`
+	Keycloak KeycloakCfg `mapstructure:"keycloak"`
 }
 
 func MustLoad() *Config {
 	viper.SetConfigFile("configs/config.yaml")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err != nil {
