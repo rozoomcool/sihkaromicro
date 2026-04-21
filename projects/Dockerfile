@@ -11,5 +11,7 @@ RUN go build -o service ./cmd/projects/main.go
 FROM alpine:latest
 WORKDIR /app
 COPY --from=builder /app/service .
+COPY --from=builder /app/configs ./configs
+
 
 CMD ["./service"]
