@@ -15,9 +15,11 @@ type DBConf struct {
 }
 
 type KeycloakCfg struct {
-	Url      string `mapstructure:"url"`
-	Realm    string `mapstructure:"realm"`
-	ClientID string `mapstructure:"clinetID"`
+	Url    string `mapstructure:"url"`
+	Realm  string `mapstructure:"realm"`
+	Client struct {
+		ID string `mapstructure:"id"`
+	} `mapstructure:"client"`
 }
 
 type Config struct {

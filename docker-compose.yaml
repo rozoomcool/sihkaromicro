@@ -17,7 +17,7 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:latest
-    command: start-dev
+    command: start-dev --import-realm
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
@@ -34,11 +34,11 @@ services:
     volumes:
       - ./keycloak/Clients-realm.json:/opt/keycloak/data/import/Clients-realm.json
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health/ready || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 60s
 
   # ─── Projects Service ────────────────────────────────
   projects-db:
@@ -72,7 +72,7 @@ services:
         condition: service_healthy
       keycloak:
         condition: service_started
-      #   condition: service_healthy
+        # condition: service_healthy
 
   # ─── Auth Service ────────────────────────────────────
   auth:

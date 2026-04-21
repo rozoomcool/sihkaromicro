@@ -36,7 +36,7 @@ func NewAuthInterceptor(ctx context.Context, cfg config.KeycloakCfg) (*AuthInter
 	}
 
 	verifier := provider.Verifier(&oidc.Config{
-		ClientID:          cfg.ClientID,
+		ClientID:          cfg.Client.ID,
 		SkipClientIDCheck: true,
 	})
 

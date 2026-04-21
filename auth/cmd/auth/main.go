@@ -18,6 +18,10 @@ func main() {
 
 	log.Info("Configs loaded")
 
+	log.Info(cfg.Keycloak.Client.ID)
+	log.Info(cfg.Keycloak.Url)
+	log.Info(cfg.Keycloak.Realm)
+
 	app := app.NewApp(log, cfg)
 
 	go func() { app.GRPCServer.MustRun() }()

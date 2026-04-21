@@ -47,7 +47,7 @@ func New(
 		logging.UnaryServerInterceptor(InterceptorLogger(log), loggingOpts...),
 	))
 
-	authHandler := handler.NewAuthGrpc(cfg)
+	authHandler := handler.NewAuthGrpc(cfg, log)
 
 	authHandler.Register(gRPCServer)
 
