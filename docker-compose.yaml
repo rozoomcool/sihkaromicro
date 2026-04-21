@@ -1,10 +1,92 @@
 services:
+
+  # ─── Keycloak ───────────────────────────────────────
+  keycloak-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   keycloak:
-    image: quay.io/keycloak/keycloak:26.3.2
+    image: quay.io/keycloak/keycloak:latest
     command: start-dev
     environment:
-      - KEYCLOAK_ADMIN=admin
-      - KEYCLOAK_ADMIN_PASSWORD=admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HTTP_PORT: 8080
     ports:
-      - "8080:8080"
-    restart: always
+      - "${KEYCLOAK_PORT}:8080"
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ─── Projects Service ────────────────────────────────
+  projects-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${PROJECTS_DB_NAME}
+      POSTGRES_USER: ${PROJECTS_DB_USER}
+      POSTGRES_PASSWORD: ${PROJECTS_DB_PASSWORD}
+    volumes:
+      - projects-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PROJECTS_DB_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  projects:
+    build:
+      context: ./projects
+      dockerfile: Dockerfile
+    environment:
+      GRPC_PORT: 50051
+      DB_DSN: postgres://${PROJECTS_DB_USER}:${PROJECTS_DB_PASSWORD}@projects-db:5432/${PROJECTS_DB_NAME}?sslmode=disable
+      KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+    ports:
+      - "${PROJECTS_GRPC_PORT}:50051"
+    depends_on:
+      projects-db:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+
+  # ─── Auth Service ────────────────────────────────────
+  auth:
+    build:
+      context: ./auth
+      dockerfile: Dockerfile
+    environment:
+      GRPC_PORT: 50052
+      KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+    ports:
+      - "${AUTH_GRPC_PORT}:50052"
+    depends_on:
+      keycloak:
+        condition: service_healthy
+
+volumes:
+  keycloak-db-data:
+  projects-db-data:

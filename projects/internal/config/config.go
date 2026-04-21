@@ -7,12 +7,7 @@ import (
 )
 
 type DBConf struct {
-	Host            string        `mapstructure:"host"`
-	Port            string        `mapstructure:"port"`
-	User            string        `mapstructure:"user"`
-	Password        string        `mapstructure:"password"`
-	Name            string        `mapstructure:"name"`
-	SSLMode         string        `mapstructure:"sslmode"`
+	DBDSN           string        `mapstructure:"db-dsn"`
 	MaxIdleConns    int           `mapstructure:"max_idle_conns"`
 	MaxOpenConns    int           `mapstructure:"max_open_conns"`
 	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"`

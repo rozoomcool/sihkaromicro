@@ -29,6 +29,7 @@ func main() {
 		log.Error("Failed auto migrate", sl.Err(err))
 	}
 	log.Info("Database successfully initialized")
+	log.Info(cfg.Auth.ProviderURL)
 
 	app := app.NewApp(log, db, cfg)
 

@@ -5,7 +5,7 @@ gen-proto-auth:
 # 	protoc --go_out=generated --go_opt=paths=source_relative --go-grpc_out=generated --go-grpc_opt=paths=source_relative api/v1/auth.proto
 
 build:
-	go build -o bin/$(BINARY_NAME) cmd/sso/main.go
+	go build -o bin/$(BINARY_NAME) cmd/auth/main.go
 
 run: build
 	./bin/$(BINARY_NAME)
