@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package projects;
+
+option go_package = "github.com/rozoomcool/sihkaromicro/projects/gen/projects";
+
+import "google/protobuf/timestamp.proto";
+
+// Project service
+service ProjectsService {
+  // Create project method
+  rpc CreateProject  (CreateProjectRequest)  returns (ProjectResponse);
+  // Get project by id method
+  rpc GetProject     (GetProjectRequest)     returns (ProjectResponse);
+  // List projects by pages method
+  rpc ListProjects   (ListProjectsRequest)   returns (ListProjectsResponse);
+  // Delete project method
+  rpc DeleteProject  (DeleteProjectRequest)  returns (DeleteProjectResponse);
+
+  // Internal method for checking user access to target project
+  rpc CheckAccess    (CheckAccessRequest)    returns (CheckAccessResponse);
+}
+
+// Project model
+message Project {
+  int64                     id         = 1;
+  string                    owner_id   = 2;
+  string                    title      = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+// Create project request data
+message CreateProjectRequest {
+  string title = 1;
+}
+
+// Project response
+message ProjectResponse {
+  Project project = 1;
+}
+
+// Get Project request data
+message GetProjectRequest {
+  int64 project_id = 1;
+}
+
+// List project request data
+message ListProjectsRequest {
+  int32 page      = 1;
+  int32 page_size = 2;
+}
+
+// List project response
+message ListProjectsResponse {
+  repeated Project projects = 1;
+  int32            total    = 2;
+}
+
+// Delete project request data
+message DeleteProjectRequest {
+  int64 project_id = 1;
+}
+
+// Delete project response data
+message DeleteProjectResponse {
+  bool success = 1;
+}
+
+// Check access request data
+message CheckAccessRequest {
+  int64 project_id = 1;
+}
+
+// Check access response data
+message CheckAccessResponse {
+  bool has_access = 1;
+}
