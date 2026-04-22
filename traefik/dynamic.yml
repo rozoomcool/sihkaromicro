@@ -1,0 +1,24 @@
+http:
+  routers:
+    auth:
+      rule: "PathPrefix(`/auth`)"
+      entryPoints:
+        - grpc
+      service: auth-service
+
+    projects:
+      rule: "PathPrefix(`/projects`)"
+      entryPoints:
+        - grpc
+      service: projects-service
+
+  services:
+    auth-service:
+      loadBalancer:
+        servers:
+          - url: "h2c://auth:50052"
+
+    projects-service:
+      loadBalancer:
+        servers:
+          - url: "h2c://projects:50051"

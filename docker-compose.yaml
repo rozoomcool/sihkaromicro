@@ -1,6 +1,72 @@
 services:
 
-  # ─── Keycloak ───────────────────────────────────────
+  traefik:
+    image: traefik:v3.0
+    ports:
+      - "9090:9090"   # единственная точка входа для gRPC
+      - "8081:8080"   # dashboard только локально
+    volumes:
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    networks:
+      - gateway
+    depends_on:
+      - auth
+      - projects
+
+  auth:
+    build:
+      context: ./auth
+      dockerfile: Dockerfile
+    environment:
+      GRPC_PORT: 50052
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+    # ports убраны — сервис недоступен снаружи
+    networks:
+      - gateway        # только внутренняя сеть
+    depends_on:
+      keycloak:
+        condition: service_started
+
+  projects:
+    build:
+      context: ./projects
+      dockerfile: Dockerfile
+    environment:
+      GRPC_PORT: 50051
+      DB_DSN: postgres://${PROJECTS_DB_USER}:${PROJECTS_DB_PASSWORD}@projects-db:5432/${PROJECTS_DB_NAME}?sslmode=disable
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+    # ports убраны — сервис недоступен снаружи
+    networks:
+      - gateway
+      - db-network
+    depends_on:
+      projects-db:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+
+  projects-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${PROJECTS_DB_NAME}
+      POSTGRES_USER: ${PROJECTS_DB_USER}
+      POSTGRES_PASSWORD: ${PROJECTS_DB_PASSWORD}
+    volumes:
+      - projects-db-data:/var/lib/postgresql/data
+    # ports убраны — БД недоступна снаружи
+    networks:
+      - db-network     # изолированная сеть только для БД
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PROJECTS_DB_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   keycloak-db:
     image: postgres:16-alpine
     environment:
@@ -9,6 +75,8 @@ services:
       POSTGRES_PASSWORD: keycloak
     volumes:
       - keycloak-db-data:/var/lib/postgresql/data
+    networks:
+      - keycloak-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U keycloak"]
       interval: 5s
@@ -26,13 +94,19 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_HTTP_PORT: 8080
+      KC_HOSTNAME_STRICT: false          # ← добавь
+      KC_HOSTNAME_STRICT_HTTPS: false    # ← добавь
+      KC_HTTP_ENABLED: true
     ports:
-      - "${KEYCLOAK_PORT}:8080"
+      - "${KEYCLOAK_PORT}:8080"  # открыт для логина через браузер
+    volumes:
+      - ./keycloak/Clients-realm.json:/opt/keycloak/data/import/Clients-realm.json
+    networks:
+      - gateway
+      - keycloak-network
     depends_on:
       keycloak-db:
         condition: service_healthy
-    volumes:
-      - ./keycloak/Clients-realm.json:/opt/keycloak/data/import/Clients-realm.json
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health/ready || exit 1"]
       interval: 5s
@@ -40,57 +114,14 @@ services:
       retries: 5
       start_period: 60s
 
-  # ─── Projects Service ────────────────────────────────
-  projects-db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: ${PROJECTS_DB_NAME}
-      POSTGRES_USER: ${PROJECTS_DB_USER}
-      POSTGRES_PASSWORD: ${PROJECTS_DB_PASSWORD}
-    volumes:
-      - projects-db-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${PROJECTS_DB_USER}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  projects:
-    build:
-      context: ./projects
-      dockerfile: Dockerfile
-    environment:
-      GRPC_PORT: 50051
-      DB_DSN: postgres://${PROJECTS_DB_USER}:${PROJECTS_DB_PASSWORD}@projects-db:5432/${PROJECTS_DB_NAME}?sslmode=disable
-      KEYCLOAK_URL: ${KEYCLOAK_URL}
-      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
-      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
-    ports:
-      - "${PROJECTS_GRPC_PORT}:50051"
-    depends_on:
-      projects-db:
-        condition: service_healthy
-      keycloak:
-        condition: service_started
-        # condition: service_healthy
-
-  # ─── Auth Service ────────────────────────────────────
-  auth:
-    build:
-      context: ./auth
-      dockerfile: Dockerfile
-    environment:
-      GRPC_PORT: ${AUTH_GRPC_PORT}
-      KEYCLOAK_URL: ${KEYCLOAK_URL}
-      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
-      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
-    ports:
-      - "${AUTH_GRPC_PORT}:50052"
-    depends_on:
-      keycloak:
-        condition: service_started
-        # condition: service_healthy
+networks:
+  gateway:
+    driver: bridge      # traefik + сервисы
+  db-network:
+    internal: true      # только projects + projects-db
+  keycloak-network:
+    internal: true      # только keycloak + keycloak-db
 
 volumes:
-  keycloak-db-data:
   projects-db-data:
+  keycloak-db-data:
