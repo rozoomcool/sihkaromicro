@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
 	pb "github.com/rozoomcool/sihkaromicro/projects/gen/proto/projects"
@@ -10,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"gorm.io/gorm"
 )
 
 type ProjectGRPCHandler struct {
@@ -30,6 +32,9 @@ func (p *ProjectGRPCHandler) CheckAccess(ctx context.Context, in *pb.CheckAccess
 	userID := interceptor.MustUserIDFromCtx(ctx)
 	ok, err := p.service.CanManage(ctx, userID, in.ProjectId)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &pb.CheckAccessResponse{HasAccess: false}, nil
+		}
 		return nil, status.Error(codes.InvalidArgument, "bad request: "+err.Error())
 	}
 	return &pb.CheckAccessResponse{HasAccess: ok}, nil

@@ -33,7 +33,7 @@ func (h *AuthHandler) Register(server *grpc.Server) {
 
 func (h *AuthHandler) Login(ctx context.Context, in *pb.LoginRequest) (*pb.LoginResponse, error) {
 	resp, err := http.PostForm(
-		fmt.Sprintf("%v/realms/%v", h.cfg.Keycloak.Url, h.cfg.Keycloak.Realm),
+		fmt.Sprintf("%v/realms/%v/protocol/openid-connect/token", h.cfg.Keycloak.Url, h.cfg.Keycloak.Realm),
 		url.Values{
 			"grant_type": {"password"},
 			"client_id":  {h.cfg.Keycloak.Client.ID},
