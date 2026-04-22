@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package sources.v1;
+
+option go_package = "github.com/rozoomcool/sihkaromicro/sources/gen/sources";
+
+import "google/protobuf/timestamp.proto";
+
+// Sources service
+service SourcesService {
+  // UploadSource
+  rpc UploadSource  (stream UploadSourceRequest) returns (UploadSourceResponse);
+  // GetSource
+  rpc GetSource     (GetSourceRequest)           returns (SourceResponse);
+  // ListSources
+  rpc ListSources   (ListSourcesRequest)         returns (ListSourcesResponse);
+  // DeleteSource
+  rpc DeleteSource  (DeleteSourceRequest)        returns (DeleteSourceResponse);
+}
+
+enum SourceType {
+  SOURCE_TYPE_UNSPECIFIED = 0;
+  SOURCE_TYPE_PDF         = 1;
+  SOURCE_TYPE_TXT         = 2;
+  SOURCE_TYPE_DOCX        = 3;
+  SOURCE_TYPE_MARKDOWN    = 4;
+  SOURCE_TYPE_URL         = 5;
+}
+
+enum SourceStatus {
+  SOURCE_STATUS_UNSPECIFIED = 0;
+  SOURCE_STATUS_PENDING     = 1;
+  SOURCE_STATUS_PROCESSING  = 2;
+  SOURCE_STATUS_READY       = 3;
+  SOURCE_STATUS_FAILED      = 4;
+}
+
+message Source {
+  int64                     id         = 1;
+  int64                     project_id = 2;
+  string                    owner_id   = 3;
+  string                    name       = 4;
+  SourceType                type       = 5;
+  SourceStatus              status     = 6;
+  int64                     size       = 7;
+  string                    job_id     = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+// File streamin
+message UploadSourceRequest {
+  oneof data {
+    // first message
+    SourceMeta meta = 1;
+    // file chunks
+    bytes chunk = 2;
+  }
+}
+
+message SourceMeta {
+  int64      project_id = 1;
+  string     name       = 2;
+  SourceType type       = 3;
+  // File size
+  int64 size = 4;
+}
+
+message UploadSourceResponse {
+  int64 source_id = 1;
+  // Client monitors progress through the job service
+  string job_id = 2;
+}
+
+message GetSourceRequest {
+  int64 id         = 1;
+  int64 project_id = 2;
+}
+
+message SourceResponse {
+  Source source = 1;
+}
+
+message ListSourcesRequest {
+  int64 project_id = 1;
+  int32 page       = 2;
+  int32 page_size  = 3;
+}
+
+message ListSourcesResponse {
+  repeated Source sources = 1;
+  int32           total   = 2;
+}
+
+message DeleteSourceRequest {
+  int64 id         = 1;
+  int64 project_id = 2;
+}
+
+message DeleteSourceResponse {
+  bool success = 1;
+}
