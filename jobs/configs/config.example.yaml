@@ -1,0 +1,23 @@
+env: dev
+logFile: ./log/app.log
+
+grpc:
+  port: "50051"
+
+db:
+  host: localhost
+  port: "5432"
+  user: root
+  password: root
+  name: auth_db
+  sslmode: disable
+  max_idle_conns: 10
+  max_open_conns: 100
+  conn_max_lifetime: 1h
+
+jwt:
+  secret: "your-super-secret-key-change-in-prod"
+  access_token_ttl: 720h
+  refresh_token_ttl: 720h
+
+internal_secret: "internal-service-secret-key"

@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package jobs.v1;
+
+option go_package = "github.com/rozoomcool/sihkaromicro/jobs/gen/jobs";
+
+import "google/protobuf/timestamp.proto";
+
+service JobsService {
+  rpc CreateJob   (CreateJobRequest)  returns (CreateJobResponse);
+  rpc GetJob      (GetJobRequest)     returns (JobResponse);
+  rpc ListJobs    (ListJobsRequest)   returns (ListJobsResponse);
+  rpc CancelJob   (CancelJobRequest)  returns (CancelJobResponse);
+  rpc WatchJob    (WatchJobRequest)   returns (stream JobResponse);  // стриминг статусов
+}
+
+enum JobType {
+  JOB_TYPE_UNSPECIFIED = 0;
+  JOB_TYPE_CHUNKING    = 1;
+  JOB_TYPE_EMBEDDING   = 2;
+  JOB_TYPE_REINDEX     = 3;
+}
+
+enum JobStatus {
+  JOB_STATUS_UNSPECIFIED = 0;
+  JOB_STATUS_PENDING     = 1;
+  JOB_STATUS_PROCESSING  = 2;
+  JOB_STATUS_DONE        = 3;
+  JOB_STATUS_FAILED      = 4;
+  JOB_STATUS_CANCELLED   = 5;
+}
+
+message Job {
+  string                    id         = 1;
+  JobType                   type       = 2;
+  JobStatus                 status     = 3;
+  string                    owner_id   = 4;
+  string                    payload    = 5; // JSON
+  string                    result     = 6; // JSON
+  string                    error      = 7;
+  int32                     retries    = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message CreateJobRequest {
+  JobType type    = 1;
+  string  payload = 2; // JSON с данными для воркера
+}
+
+message CreateJobResponse {
+  string job_id = 1;
+}
+
+message GetJobRequest {
+  string job_id = 1;
+}
+
+message JobResponse {
+  Job job = 1;
+}
+
+message ListJobsRequest {
+  JobType type      = 1; // фильтр по типу (опционально)
+  JobStatus status  = 2; // фильтр по статусу (опционально)
+  int32 page        = 3;
+  int32 page_size   = 4;
+}
+
+message ListJobsResponse {
+  repeated Job jobs = 1;
+  int32        total = 2;
+}
+
+message CancelJobRequest {
+  string job_id = 1;
+}
+
+message CancelJobResponse {
+  bool success = 1;
+}
+
+message WatchJobRequest {
+  string job_id = 1;
+}
