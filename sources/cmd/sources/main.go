@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -20,6 +21,7 @@ func main() {
 	log.Info("Start running application", "Mode", cfg.Env, "Logs", cfg.LogFile)
 
 	log.Info("Configs loaded")
+	log.Info("MINIO CFGS", slog.String("ID", cfg.MinIO.AccessKeyID), slog.String("Endpoint", cfg.MinIO.Endpoint))
 
 	db, err := database.New(cfg.DB)
 	if err != nil {

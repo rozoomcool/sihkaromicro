@@ -1,74 +1,154 @@
 services:
 
+  # ─── Traefik ────────────────────────────────────────
   traefik:
     image: traefik:v3.0
+    restart: unless-stopped
     ports:
-      - "9090:9090"   # единственная точка входа для gRPC
-      - "8081:8080"   # dashboard только локально
+      - "9090:9090"
+      - "8081:8080"
     volumes:
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
     networks:
       - gateway
     depends_on:
-      - auth
-      - projects
+      auth:
+        condition: service_healthy
+      projects:
+        condition: service_healthy
+      sources:
+        condition: service_healthy
 
+  # ─── Auth Service ────────────────────────────────────
   auth:
     build:
       context: ./auth
       dockerfile: Dockerfile
+    restart: unless-stopped
     environment:
       GRPC_PORT: 50052
-      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_URL: http://keycloak:${KEYCLOAK_PORT}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
-    # ports убраны — сервис недоступен снаружи
     networks:
-      - gateway        # только внутренняя сеть
+      - gateway
     depends_on:
       keycloak:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "grpc_health_probe -addr=:50052 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
+  # ─── Projects Service ────────────────────────────────
   projects:
     build:
       context: ./projects
       dockerfile: Dockerfile
+    restart: unless-stopped
     environment:
       GRPC_PORT: 50051
       DB_DSN: postgres://${PROJECTS_DB_USER}:${PROJECTS_DB_PASSWORD}@projects-db:5432/${PROJECTS_DB_NAME}?sslmode=disable
-      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_URL: http://keycloak:${KEYCLOAK_PORT}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
-    # ports убраны — сервис недоступен снаружи
     networks:
       - gateway
-      - db-network
+      - projects-db-network
     depends_on:
       projects-db:
         condition: service_healthy
       keycloak:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "grpc_health_probe -addr=:50051 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
+  # ─── Sources Service ─────────────────────────────────
+  sources:
+    build:
+      context: ./sources
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      GRPC_PORT: 50053
+      DB_DSN: postgres://${SOURCES_DB_USER}:${SOURCES_DB_PASSWORD}@sources-db:5432/${SOURCES_DB_NAME}?sslmode=disable
+      KEYCLOAK_URL: http://keycloak:${KEYCLOAK_PORT}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      KAFKA_BROKERS: kafka:29092
+      KAFKA_TOPIC: jobs.chunking
+    networks:
+      - gateway
+      - sources-db-network
+      - minio-network
+      - kafka-network
+    depends_on:
+      sources-db:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "grpc_health_probe -addr=:50053 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ─── Projects DB ─────────────────────────────────────
   projects-db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${PROJECTS_DB_NAME}
       POSTGRES_USER: ${PROJECTS_DB_USER}
       POSTGRES_PASSWORD: ${PROJECTS_DB_PASSWORD}
     volumes:
       - projects-db-data:/var/lib/postgresql/data
-    # ports убраны — БД недоступна снаружи
     networks:
-      - db-network     # изолированная сеть только для БД
+      - projects-db-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${PROJECTS_DB_USER}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
+  # ─── Sources DB (pgvector) ───────────────────────────
+  sources-db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${SOURCES_DB_NAME}
+      POSTGRES_USER: ${SOURCES_DB_USER}
+      POSTGRES_PASSWORD: ${SOURCES_DB_PASSWORD}
+    volumes:
+      - sources-db-data:/var/lib/postgresql/data
+    networks:
+      - sources-db-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SOURCES_DB_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── Keycloak DB ─────────────────────────────────────
   keycloak-db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: keycloak
       POSTGRES_USER: keycloak
@@ -83,8 +163,10 @@ services:
       timeout: 5s
       retries: 5
 
+  # ─── Keycloak ────────────────────────────────────────
   keycloak:
     image: quay.io/keycloak/keycloak:latest
+    restart: unless-stopped
     command: start-dev --import-realm
     environment:
       KC_DB: postgres
@@ -93,14 +175,14 @@ services:
       KC_DB_PASSWORD: keycloak
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-      KC_HTTP_PORT: 8080
-      KC_HOSTNAME_STRICT: false          # ← добавь
-      KC_HOSTNAME_STRICT_HTTPS: false    # ← добавь
+      KC_HTTP_PORT: 8082
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
       KC_HTTP_ENABLED: true
     ports:
-      - "${KEYCLOAK_PORT}:8080"  # открыт для логина через браузер
+      - "${KEYCLOAK_PORT}:8082"
     volumes:
-      - ./keycloak/Clients-realm.json:/opt/keycloak/data/import/Clients-realm.json
+      - ./keycloak/Clients-realm.json:/opt/keycloak/data/import/Clients-realm.json:ro
     networks:
       - gateway
       - keycloak-network
@@ -108,20 +190,106 @@ services:
       keycloak-db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health/ready || exit 1"]
-      interval: 5s
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8082 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 90s
+
+  # ─── MinIO ───────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001" --address ":9000"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    ports:
+      - "9001:9001"   # консоль — только локально
+    volumes:
+      - minio-data:/data
+    networks:
+      - minio-network
+      - tools-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 60s
+      start_period: 10s
 
+  # ─── Zookeeper ───────────────────────────────────────
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - kafka-network
+    healthcheck:
+      test: ["CMD-SHELL", "cub zk-ready localhost:2181 30 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  # ─── Kafka ───────────────────────────────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    restart: unless-stopped
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+    networks:
+      - kafka-network
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:29092 --list || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # ─── Kafdrop ─────────────────────────────────────────
+  kafdrop:
+    image: obsidiandynamics/kafdrop:latest
+    restart: unless-stopped
+    environment:
+      KAFKA_BROKERCONNECT: kafka:29092
+    ports:
+      - "9002:9000"
+    networks:
+      - kafka-network
+      - tools-network
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+# ─── Networks ──────────────────────────────────────────
 networks:
   gateway:
-    driver: bridge      # traefik + сервисы
-  db-network:
-    internal: true      # только projects + projects-db
+    driver: bridge
+  projects-db-network:
+    internal: true
+  sources-db-network:
+    internal: true
   keycloak-network:
-    internal: true      # только keycloak + keycloak-db
+    internal: true
+  minio-network:
+    internal: true
+  kafka-network:
+    internal: true
+  tools-network:
+    driver: bridge 
 
+# ─── Volumes ───────────────────────────────────────────
 volumes:
   projects-db-data:
+  sources-db-data:
   keycloak-db-data:
+  minio-data:

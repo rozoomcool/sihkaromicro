@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"strings"
 	"time"
 
@@ -37,20 +38,19 @@ type KafkaConfig struct {
 
 type Config struct {
 	Env     string `mapstructure:"env"`
-	LogFile string `mapstructure:"logFile"`
+	LogFile string `mapstructure:"log_file"`
 	GRPC    struct {
 		Port string `mapstructure:"port"`
 	} `mapstructure:"grpc"`
 
 	DB       DBConf      `mapstructure:"db"`
 	Keycloak KeycloakCfg `mapstructure:"keycloak"`
-	MinIOCfg MinIOConfig `mapstructure:"minio"`
-	Kafka    KafkaConfig `mapstructure:"kafka"`
+	MinIO    MinIOConfig
+	Kafka    KafkaConfig
 }
 
 func MustLoad() *Config {
 	viper.SetConfigFile("configs/config.yaml")
-
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
@@ -61,6 +61,20 @@ func MustLoad() *Config {
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {
 		panic("Error occured when loading configs: " + err.Error())
+	}
+
+	// MinIO и Kafka читаем напрямую из env
+	cfg.MinIO = MinIOConfig{
+		Endpoint:        os.Getenv("MINIO_ENDPOINT"),
+		AccessKeyID:     os.Getenv("MINIO_ACCESS_KEY"),
+		SecretAccessKey: os.Getenv("MINIO_SECRET_KEY"),
+		BucketName:      os.Getenv("MINIO_BUCKET"),
+		UseSSL:          false,
+	}
+
+	cfg.Kafka = KafkaConfig{
+		Brokers: strings.Split(os.Getenv("KAFKA_BROKERS"), ","),
+		Topic:   os.Getenv("KAFKA_TOPIC"),
 	}
 
 	return &cfg

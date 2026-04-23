@@ -16,6 +16,11 @@ import (
 
 type contextKey string
 
+var publicMethods = map[string]bool{
+	"/grpc.health.v1.Health/Check": true,
+	"/grpc.health.v1.Health/Watch": true,
+}
+
 const UserIDKey contextKey = "user_id"
 
 type Claims struct {
@@ -45,6 +50,9 @@ func NewAuthInterceptor(ctx context.Context, cfg config.KeycloakCfg) (*AuthInter
 
 func (a *AuthInterceptor) Unary() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		if publicMethods[info.FullMethod] {
+			return handler(ctx, req)
+		}
 		ctx, err := a.authorize(ctx)
 		if err != nil {
 			return nil, err

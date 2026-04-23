@@ -12,6 +12,8 @@ import (
 	"github.com/rozoomcool/sihkaromicro/auth/internal/handler"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/status"
 )
 
@@ -50,6 +52,11 @@ func New(
 	authHandler := handler.NewAuthGrpc(cfg, log)
 
 	authHandler.Register(gRPCServer)
+
+	// Register health service
+	healthServer := health.NewServer()
+	healthpb.RegisterHealthServer(gRPCServer, healthServer)
+	healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 
 	return &App{
 		log:        log,

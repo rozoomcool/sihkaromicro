@@ -23,7 +23,7 @@ func NewApp(
 ) *App {
 
 	sourceRepo := repository.NewSourceRepository(db)
-	minioClient, err := service.NewMinioClient(cfg.MinIOCfg)
+	minioClient, err := service.NewMinioClient(cfg.MinIO)
 	kafkaProducer := kafka.NewProducer(cfg.Kafka)
 
 	if err != nil {

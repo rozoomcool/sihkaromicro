@@ -22,3 +22,8 @@ http:
       loadBalancer:
         servers:
           - url: "h2c://projects:50051"
+    
+    sources-service:
+      loadBalancer:
+        servers:
+          - url: "h2c://projects:50053"
