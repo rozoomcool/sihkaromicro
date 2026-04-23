@@ -22,6 +22,19 @@ type KeycloakCfg struct {
 	} `mapstructure:"client"`
 }
 
+type MinIOConfig struct {
+	Endpoint        string
+	AccessKeyID     string
+	SecretAccessKey string
+	BucketName      string
+	UseSSL          bool
+}
+
+type KafkaConfig struct {
+	Brokers []string
+	Topic   string
+}
+
 type Config struct {
 	Env     string `mapstructure:"env"`
 	LogFile string `mapstructure:"logFile"`
@@ -31,6 +44,8 @@ type Config struct {
 
 	DB       DBConf      `mapstructure:"db"`
 	Keycloak KeycloakCfg `mapstructure:"keycloak"`
+	MinIOCfg MinIOConfig `mapstructure:"minio"`
+	Kafka    KafkaConfig `mapstructure:"kafka"`
 }
 
 func MustLoad() *Config {

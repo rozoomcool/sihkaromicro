@@ -5,6 +5,10 @@ import (
 
 	grpcapp "github.com/rozoomcool/sihkaromicro/sources/internal/app/grpc"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/config"
+	"github.com/rozoomcool/sihkaromicro/sources/internal/kafka"
+	"github.com/rozoomcool/sihkaromicro/sources/internal/repository"
+	"github.com/rozoomcool/sihkaromicro/sources/internal/service"
+	"gorm.io/gorm"
 )
 
 type App struct {
@@ -15,8 +19,18 @@ type App struct {
 func NewApp(
 	cfg *config.Config,
 	log *slog.Logger,
+	db *gorm.DB,
 ) *App {
-	grpcServer := grpcapp.New(log, cfg)
+
+	sourceRepo := repository.NewSourceRepository(db)
+	minioClient, err := service.NewMinioClient(cfg.MinIOCfg)
+	kafkaProducer := kafka.NewProducer(cfg.Kafka)
+
+	if err != nil {
+		panic("Unable connect to MinIO")
+	}
+
+	grpcServer := grpcapp.New(sourceRepo, minioClient, kafkaProducer, log, cfg)
 
 	return &App{GRPCServer: grpcServer, log: log}
 }

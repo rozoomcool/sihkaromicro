@@ -10,6 +10,9 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/config"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/handler"
+	"github.com/rozoomcool/sihkaromicro/sources/internal/kafka"
+	"github.com/rozoomcool/sihkaromicro/sources/internal/repository"
+	"github.com/rozoomcool/sihkaromicro/sources/internal/service"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -23,6 +26,9 @@ type App struct {
 
 // New creates new gRPC server app.
 func New(
+	repo repository.SourceRepository,
+	minio *service.MinioClient,
+	producer *kafka.Producer,
 	log *slog.Logger,
 	cfg *config.Config,
 ) *App {
@@ -55,7 +61,7 @@ func New(
 		// authInterceptor.Unary(),
 	))
 
-	projectHandler := handler.NewSourceGRPCHandler(log)
+	projectHandler := handler.NewSourceHandler(repo, minio, producer, log)
 	projectHandler.Register(gRPCServer)
 
 	return &App{
