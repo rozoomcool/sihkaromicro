@@ -12,6 +12,12 @@ http:
         - grpc
       service: projects-service
 
+    sources:
+      rule: "PathPrefix(`/sources`)"
+      entryPoints:
+        - grpc
+      service: sources-service
+
   services:
     auth-service:
       loadBalancer:
@@ -26,4 +32,4 @@ http:
     sources-service:
       loadBalancer:
         servers:
-          - url: "h2c://projects:50053"
+          - url: "h2c://sources:50053"
