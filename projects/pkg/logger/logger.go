@@ -27,6 +27,8 @@ func SetupLogger(env string, logFile string) *slog.Logger {
 		level = slog.LevelDebug
 	case envProd:
 		level = slog.LevelInfo
+	default:
+		level = slog.LevelDebug
 	}
 
 	prettyOpts := slogpretty.PrettyHandlerOptions{
