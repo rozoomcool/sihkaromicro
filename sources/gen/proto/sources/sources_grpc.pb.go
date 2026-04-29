@@ -23,6 +23,7 @@ const (
 	SourcesService_GetSource_FullMethodName    = "/sources.v1.SourcesService/GetSource"
 	SourcesService_ListSources_FullMethodName  = "/sources.v1.SourcesService/ListSources"
 	SourcesService_DeleteSource_FullMethodName = "/sources.v1.SourcesService/DeleteSource"
+	SourcesService_RetryJob_FullMethodName     = "/sources.v1.SourcesService/RetryJob"
 )
 
 // SourcesServiceClient is the client API for SourcesService service.
@@ -31,14 +32,16 @@ const (
 //
 // Sources service
 type SourcesServiceClient interface {
-	// UploadSource
+	// Upload source file
 	UploadSource(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadSourceRequest, UploadSourceResponse], error)
-	// GetSource
+	// Get source by id
 	GetSource(ctx context.Context, in *GetSourceRequest, opts ...grpc.CallOption) (*SourceResponse, error)
-	// ListSources
+	// List all sources in project
 	ListSources(ctx context.Context, in *ListSourcesRequest, opts ...grpc.CallOption) (*ListSourcesResponse, error)
-	// DeleteSource
+	// Delete source
 	DeleteSource(ctx context.Context, in *DeleteSourceRequest, opts ...grpc.CallOption) (*DeleteSourceResponse, error)
+	// Retry job if not started
+	RetryJob(ctx context.Context, in *RetryJobRequest, opts ...grpc.CallOption) (*RetryJobResponse, error)
 }
 
 type sourcesServiceClient struct {
@@ -92,20 +95,32 @@ func (c *sourcesServiceClient) DeleteSource(ctx context.Context, in *DeleteSourc
 	return out, nil
 }
 
+func (c *sourcesServiceClient) RetryJob(ctx context.Context, in *RetryJobRequest, opts ...grpc.CallOption) (*RetryJobResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RetryJobResponse)
+	err := c.cc.Invoke(ctx, SourcesService_RetryJob_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SourcesServiceServer is the server API for SourcesService service.
 // All implementations must embed UnimplementedSourcesServiceServer
 // for forward compatibility.
 //
 // Sources service
 type SourcesServiceServer interface {
-	// UploadSource
+	// Upload source file
 	UploadSource(grpc.ClientStreamingServer[UploadSourceRequest, UploadSourceResponse]) error
-	// GetSource
+	// Get source by id
 	GetSource(context.Context, *GetSourceRequest) (*SourceResponse, error)
-	// ListSources
+	// List all sources in project
 	ListSources(context.Context, *ListSourcesRequest) (*ListSourcesResponse, error)
-	// DeleteSource
+	// Delete source
 	DeleteSource(context.Context, *DeleteSourceRequest) (*DeleteSourceResponse, error)
+	// Retry job if not started
+	RetryJob(context.Context, *RetryJobRequest) (*RetryJobResponse, error)
 	mustEmbedUnimplementedSourcesServiceServer()
 }
 
@@ -127,6 +142,9 @@ func (UnimplementedSourcesServiceServer) ListSources(context.Context, *ListSourc
 }
 func (UnimplementedSourcesServiceServer) DeleteSource(context.Context, *DeleteSourceRequest) (*DeleteSourceResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteSource not implemented")
+}
+func (UnimplementedSourcesServiceServer) RetryJob(context.Context, *RetryJobRequest) (*RetryJobResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RetryJob not implemented")
 }
 func (UnimplementedSourcesServiceServer) mustEmbedUnimplementedSourcesServiceServer() {}
 func (UnimplementedSourcesServiceServer) testEmbeddedByValue()                        {}
@@ -210,6 +228,24 @@ func _SourcesService_DeleteSource_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SourcesService_RetryJob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RetryJobRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SourcesServiceServer).RetryJob(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SourcesService_RetryJob_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SourcesServiceServer).RetryJob(ctx, req.(*RetryJobRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SourcesService_ServiceDesc is the grpc.ServiceDesc for SourcesService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -228,6 +264,10 @@ var SourcesService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteSource",
 			Handler:    _SourcesService_DeleteSource_Handler,
+		},
+		{
+			MethodName: "RetryJob",
+			Handler:    _SourcesService_RetryJob_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

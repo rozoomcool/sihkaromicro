@@ -11,6 +11,8 @@ type SourceStatus string
 type SourceType string
 
 const (
+	StatusUploading  SourceStatus = "uploading"
+	StatusUploaded   SourceStatus = "uploaded"
 	StatusPending    SourceStatus = "pending"
 	StatusProcessing SourceStatus = "processing"
 	StatusReady      SourceStatus = "ready"

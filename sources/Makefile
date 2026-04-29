@@ -1,3 +1,4 @@
+MIGRATE=migrate -path migrations -database $(DB_DSN)
 BINARY_NAME=main
 
 gen-proto:
@@ -11,5 +12,13 @@ build:
 run: build
 	./bin/$(BINARY_NAME)
 
+migrate-up:
+	$(MIGRATE) up
 
-.PHONY: gen-proto-projects protogen build test
+migrate-down:
+	$(MIGRATE) down 1
+
+migrate-create:
+	migrate create -ext sql -dir migrations -seq $(name)
+
+.PHONY: gen-proto-projects protogen build test  migrate-up migrate-down migrate-create

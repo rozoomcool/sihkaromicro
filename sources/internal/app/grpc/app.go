@@ -6,18 +6,16 @@ import (
 	"log/slog"
 	"net"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
-	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/config"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/handler"
+	"github.com/rozoomcool/sihkaromicro/sources/internal/interceptor"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/kafka"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/repository"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/service"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/health"
+	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/status"
 )
 
 type App struct {
@@ -34,55 +32,33 @@ func New(
 	log *slog.Logger,
 	cfg *config.Config,
 ) *App {
-	loggingOpts := []logging.Option{
-		logging.WithLogOnEvents(
-			//logging.StartCall, logging.FinishCall,
-			logging.PayloadReceived, logging.PayloadSent,
-		),
+	// Setup auth interceptor
+	authInterceptor, err := interceptor.NewAuthInterceptor(context.Background(), cfg.Keycloak)
+	if err != nil {
+		panic(fmt.Sprintf("failed to create auth interceptor: %v", err))
 	}
 
-	recoveryOpts := []recovery.Option{
-		recovery.WithRecoveryHandler(func(p any) error {
-			log.Info("Recovered from panic", slog.Any("panic", p))
-			if st, ok := p.(interface{ GRPCStatus() *status.Status }); ok {
-				return st.GRPCStatus().Err()
-			}
-
-			return status.Errorf(codes.Internal, "internal error")
-		}),
-	}
-
-	// authInterceptor, err := interceptor.NewAuthInterceptor(context.Background(), cfg.Keycloak)
-	// if err != nil {
-	// 	panic(fmt.Sprintf("failed to create auth interceptor: %v", err))
-	// }
-
+	// Setup grpc server
 	gRPCServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
-		recovery.UnaryServerInterceptor(recoveryOpts...),
-		logging.UnaryServerInterceptor(InterceptorLogger(log), loggingOpts...),
-		// authInterceptor.Unary(),
+		interceptor.NewUnaryRecoveryInterceptor(log),
+		interceptor.NewUnaryLoggerInterceptor(log),
+		authInterceptor.Unary(),
 	))
 
+	// Setup project handler
 	projectHandler := handler.NewSourceHandler(repo, minio, producer, log)
 	projectHandler.Register(gRPCServer)
 
-	// Register health service
-	healthServer := health.NewServer()
-	healthpb.RegisterHealthServer(gRPCServer, healthServer)
-	healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
+	// Setup health checking
+	healthcheck := health.NewServer()
+	healthgrpc.RegisterHealthServer(gRPCServer, healthcheck)
+	healthcheck.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 
 	return &App{
 		log:        log,
 		gRPCServer: gRPCServer,
 		cfg:        cfg,
 	}
-}
-
-// InterceptorLogger adapts slog logger to interceptor logger.
-func InterceptorLogger(l *slog.Logger) logging.Logger {
-	return logging.LoggerFunc(func(ctx context.Context, lvl logging.Level, msg string, fields ...any) {
-		l.Log(ctx, slog.Level(lvl), msg, fields...)
-	})
 }
 
 // MustRun runs gRPC server and panics if any error occurs.

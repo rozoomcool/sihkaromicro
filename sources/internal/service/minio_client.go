@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -51,4 +52,12 @@ func (m *MinioClient) Delete(ctx context.Context, objectName string) error {
 
 func (m *MinioClient) ObjectName(ownerID string, sourceID int64, fileName string) string {
 	return fmt.Sprintf("%s/%d/%s", ownerID, sourceID, fileName)
+}
+
+func (m *MinioClient) PresignedURL(ctx context.Context, objectName string) (string, error) {
+	url, err := m.client.PresignedGetObject(ctx, m.bucketName, objectName, time.Hour, nil)
+	if err != nil {
+		return "", err
+	}
+	return url.String(), nil
 }

@@ -13,6 +13,7 @@ type SourceRepository interface {
 	FindAll(ctx context.Context, projectID int64, ownerID string) ([]model.Source, error)
 	Count(ctx context.Context, projectID int64, ownerID string) (int64, error)
 	UpdateStatus(ctx context.Context, id int64, status model.SourceStatus, jobID string) error
+	UpdateMinioPath(ctx context.Context, id int64, minioPath string) error
 	Delete(ctx context.Context, id, projectID int64, ownerID string) error
 }
 
@@ -78,4 +79,11 @@ func (r *sourceRepository) Count(ctx context.Context, projectID int64, ownerID s
 		Where("project_id = ? AND owner_id = ?", projectID, ownerID).
 		Count(&count).Error
 	return count, err
+}
+
+func (r *sourceRepository) UpdateMinioPath(ctx context.Context, id int64, minioPath string) error {
+	return r.db.WithContext(ctx).
+		Model(&model.Source{}).
+		Where("id = ?", id).
+		Update("minio_path", minioPath).Error
 }

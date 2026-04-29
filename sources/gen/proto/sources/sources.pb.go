@@ -84,27 +84,33 @@ type SourceStatus int32
 
 const (
 	SourceStatus_SOURCE_STATUS_UNSPECIFIED SourceStatus = 0
-	SourceStatus_SOURCE_STATUS_PENDING     SourceStatus = 1
-	SourceStatus_SOURCE_STATUS_PROCESSING  SourceStatus = 2
-	SourceStatus_SOURCE_STATUS_READY       SourceStatus = 3
-	SourceStatus_SOURCE_STATUS_FAILED      SourceStatus = 4
+	SourceStatus_SOURCE_STATUS_UPLOADING   SourceStatus = 1
+	SourceStatus_SOURCE_STATUS_UPLOADED    SourceStatus = 2
+	SourceStatus_SOURCE_STATUS_PENDING     SourceStatus = 3
+	SourceStatus_SOURCE_STATUS_PROCESSING  SourceStatus = 4
+	SourceStatus_SOURCE_STATUS_READY       SourceStatus = 5
+	SourceStatus_SOURCE_STATUS_FAILED      SourceStatus = 6
 )
 
 // Enum value maps for SourceStatus.
 var (
 	SourceStatus_name = map[int32]string{
 		0: "SOURCE_STATUS_UNSPECIFIED",
-		1: "SOURCE_STATUS_PENDING",
-		2: "SOURCE_STATUS_PROCESSING",
-		3: "SOURCE_STATUS_READY",
-		4: "SOURCE_STATUS_FAILED",
+		1: "SOURCE_STATUS_UPLOADING",
+		2: "SOURCE_STATUS_UPLOADED",
+		3: "SOURCE_STATUS_PENDING",
+		4: "SOURCE_STATUS_PROCESSING",
+		5: "SOURCE_STATUS_READY",
+		6: "SOURCE_STATUS_FAILED",
 	}
 	SourceStatus_value = map[string]int32{
 		"SOURCE_STATUS_UNSPECIFIED": 0,
-		"SOURCE_STATUS_PENDING":     1,
-		"SOURCE_STATUS_PROCESSING":  2,
-		"SOURCE_STATUS_READY":       3,
-		"SOURCE_STATUS_FAILED":      4,
+		"SOURCE_STATUS_UPLOADING":   1,
+		"SOURCE_STATUS_UPLOADED":    2,
+		"SOURCE_STATUS_PENDING":     3,
+		"SOURCE_STATUS_PROCESSING":  4,
+		"SOURCE_STATUS_READY":       5,
+		"SOURCE_STATUS_FAILED":      6,
 	}
 )
 
@@ -145,8 +151,11 @@ type Source struct {
 	Status        SourceStatus           `protobuf:"varint,6,opt,name=status,proto3,enum=sources.v1.SourceStatus" json:"status,omitempty"`
 	Size          int64                  `protobuf:"varint,7,opt,name=size,proto3" json:"size,omitempty"`
 	JobId         string                 `protobuf:"bytes,8,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Url           string                 `protobuf:"bytes,9,opt,name=url,proto3" json:"url,omitempty"`                               // presigned URL для скачивания
+	Error         string                 `protobuf:"bytes,10,opt,name=error,proto3" json:"error,omitempty"`                          // причина ошибки
+	SourceUrl     string                 `protobuf:"bytes,11,opt,name=source_url,json=sourceUrl,proto3" json:"source_url,omitempty"` // оригинальный URL (только для SOURCE_TYPE_URL)
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -237,6 +246,27 @@ func (x *Source) GetJobId() string {
 	return ""
 }
 
+func (x *Source) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *Source) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *Source) GetSourceUrl() string {
+	if x != nil {
+		return x.SourceUrl
+	}
+	return ""
+}
+
 func (x *Source) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.CreatedAt
@@ -251,13 +281,14 @@ func (x *Source) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// File streamin
+// File streaming
 type UploadSourceRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Data:
 	//
 	//	*UploadSourceRequest_Meta
 	//	*UploadSourceRequest_Chunk
+	//	*UploadSourceRequest_Done
 	Data          isUploadSourceRequest_Data `protobuf_oneof:"data"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -318,31 +349,44 @@ func (x *UploadSourceRequest) GetChunk() []byte {
 	return nil
 }
 
+func (x *UploadSourceRequest) GetDone() bool {
+	if x != nil {
+		if x, ok := x.Data.(*UploadSourceRequest_Done); ok {
+			return x.Done
+		}
+	}
+	return false
+}
+
 type isUploadSourceRequest_Data interface {
 	isUploadSourceRequest_Data()
 }
 
 type UploadSourceRequest_Meta struct {
-	// first message
-	Meta *SourceMeta `protobuf:"bytes,1,opt,name=meta,proto3,oneof"`
+	Meta *SourceMeta `protobuf:"bytes,1,opt,name=meta,proto3,oneof"` // первое сообщение — метаданные
 }
 
 type UploadSourceRequest_Chunk struct {
-	// file chunks
-	Chunk []byte `protobuf:"bytes,2,opt,name=chunk,proto3,oneof"`
+	Chunk []byte `protobuf:"bytes,2,opt,name=chunk,proto3,oneof"` // чанки файла
+}
+
+type UploadSourceRequest_Done struct {
+	Done bool `protobuf:"varint,3,opt,name=done,proto3,oneof"` // последнее сообщение — файл передан полностью
 }
 
 func (*UploadSourceRequest_Meta) isUploadSourceRequest_Data() {}
 
 func (*UploadSourceRequest_Chunk) isUploadSourceRequest_Data() {}
 
+func (*UploadSourceRequest_Done) isUploadSourceRequest_Data() {}
+
 type SourceMeta struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	ProjectId int64                  `protobuf:"varint,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
-	Name      string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Type      SourceType             `protobuf:"varint,3,opt,name=type,proto3,enum=sources.v1.SourceType" json:"type,omitempty"`
-	// File size
-	Size          int64 `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     int64                  `protobuf:"varint,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Type          SourceType             `protobuf:"varint,3,opt,name=type,proto3,enum=sources.v1.SourceType" json:"type,omitempty"`
+	Size          int64                  `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
+	SourceUrl     string                 `protobuf:"bytes,5,opt,name=source_url,json=sourceUrl,proto3" json:"source_url,omitempty"` // только для SOURCE_TYPE_URL
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -405,11 +449,17 @@ func (x *SourceMeta) GetSize() int64 {
 	return 0
 }
 
+func (x *SourceMeta) GetSourceUrl() string {
+	if x != nil {
+		return x.SourceUrl
+	}
+	return ""
+}
+
 type UploadSourceResponse struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	SourceId int64                  `protobuf:"varint,1,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
-	// Client monitors progress through the job service
-	JobId         string `protobuf:"bytes,2,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SourceId      int64                  `protobuf:"varint,1,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	JobId         string                 `protobuf:"bytes,2,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -557,8 +607,6 @@ func (x *SourceResponse) GetSource() *Source {
 type ListSourcesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ProjectId     int64                  `protobuf:"varint,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
-	Page          int32                  `protobuf:"varint,2,opt,name=page,proto3" json:"page,omitempty"`
-	PageSize      int32                  `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -600,24 +648,9 @@ func (x *ListSourcesRequest) GetProjectId() int64 {
 	return 0
 }
 
-func (x *ListSourcesRequest) GetPage() int32 {
-	if x != nil {
-		return x.Page
-	}
-	return 0
-}
-
-func (x *ListSourcesRequest) GetPageSize() int32 {
-	if x != nil {
-		return x.PageSize
-	}
-	return 0
-}
-
 type ListSourcesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Sources       []*Source              `protobuf:"bytes,1,rep,name=sources,proto3" json:"sources,omitempty"`
-	Total         int32                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -657,13 +690,6 @@ func (x *ListSourcesResponse) GetSources() []*Source {
 		return x.Sources
 	}
 	return nil
-}
-
-func (x *ListSourcesResponse) GetTotal() int32 {
-	if x != nil {
-		return x.Total
-	}
-	return 0
 }
 
 type DeleteSourceRequest struct {
@@ -762,12 +788,108 @@ func (x *DeleteSourceResponse) GetSuccess() bool {
 	return false
 }
 
+type RetryJobRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SourceId      int64                  `protobuf:"varint,1,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	ProjectId     int64                  `protobuf:"varint,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetryJobRequest) Reset() {
+	*x = RetryJobRequest{}
+	mi := &file_proto_sources_sources_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetryJobRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetryJobRequest) ProtoMessage() {}
+
+func (x *RetryJobRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_sources_sources_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetryJobRequest.ProtoReflect.Descriptor instead.
+func (*RetryJobRequest) Descriptor() ([]byte, []int) {
+	return file_proto_sources_sources_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *RetryJobRequest) GetSourceId() int64 {
+	if x != nil {
+		return x.SourceId
+	}
+	return 0
+}
+
+func (x *RetryJobRequest) GetProjectId() int64 {
+	if x != nil {
+		return x.ProjectId
+	}
+	return 0
+}
+
+type RetryJobResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	JobId         string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetryJobResponse) Reset() {
+	*x = RetryJobResponse{}
+	mi := &file_proto_sources_sources_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetryJobResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetryJobResponse) ProtoMessage() {}
+
+func (x *RetryJobResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_sources_sources_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetryJobResponse.ProtoReflect.Descriptor instead.
+func (*RetryJobResponse) Descriptor() ([]byte, []int) {
+	return file_proto_sources_sources_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *RetryJobResponse) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
 var File_proto_sources_sources_proto protoreflect.FileDescriptor
 
 const file_proto_sources_sources_proto_rawDesc = "" +
 	"\n" +
 	"\x1bproto/sources/sources.proto\x12\n" +
-	"sources.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe5\x02\n" +
+	"sources.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xac\x03\n" +
 	"\x06Source\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1d\n" +
 	"\n" +
@@ -777,23 +899,30 @@ const file_proto_sources_sources_proto_rawDesc = "" +
 	"\x04type\x18\x05 \x01(\x0e2\x16.sources.v1.SourceTypeR\x04type\x120\n" +
 	"\x06status\x18\x06 \x01(\x0e2\x18.sources.v1.SourceStatusR\x06status\x12\x12\n" +
 	"\x04size\x18\a \x01(\x03R\x04size\x12\x15\n" +
-	"\x06job_id\x18\b \x01(\tR\x05jobId\x129\n" +
+	"\x06job_id\x18\b \x01(\tR\x05jobId\x12\x10\n" +
+	"\x03url\x18\t \x01(\tR\x03url\x12\x14\n" +
+	"\x05error\x18\n" +
+	" \x01(\tR\x05error\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"source_url\x18\v \x01(\tR\tsourceUrl\x129\n" +
 	"\n" +
-	"updated_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"c\n" +
+	"created_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"y\n" +
 	"\x13UploadSourceRequest\x12,\n" +
 	"\x04meta\x18\x01 \x01(\v2\x16.sources.v1.SourceMetaH\x00R\x04meta\x12\x16\n" +
-	"\x05chunk\x18\x02 \x01(\fH\x00R\x05chunkB\x06\n" +
-	"\x04data\"\x7f\n" +
+	"\x05chunk\x18\x02 \x01(\fH\x00R\x05chunk\x12\x14\n" +
+	"\x04done\x18\x03 \x01(\bH\x00R\x04doneB\x06\n" +
+	"\x04data\"\x9e\x01\n" +
 	"\n" +
 	"SourceMeta\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\x03R\tprojectId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12*\n" +
 	"\x04type\x18\x03 \x01(\x0e2\x16.sources.v1.SourceTypeR\x04type\x12\x12\n" +
-	"\x04size\x18\x04 \x01(\x03R\x04size\"J\n" +
+	"\x04size\x18\x04 \x01(\x03R\x04size\x12\x1d\n" +
+	"\n" +
+	"source_url\x18\x05 \x01(\tR\tsourceUrl\"J\n" +
 	"\x14UploadSourceResponse\x12\x1b\n" +
 	"\tsource_id\x18\x01 \x01(\x03R\bsourceId\x12\x15\n" +
 	"\x06job_id\x18\x02 \x01(\tR\x05jobId\"A\n" +
@@ -802,21 +931,24 @@ const file_proto_sources_sources_proto_rawDesc = "" +
 	"\n" +
 	"project_id\x18\x02 \x01(\x03R\tprojectId\"<\n" +
 	"\x0eSourceResponse\x12*\n" +
-	"\x06source\x18\x01 \x01(\v2\x12.sources.v1.SourceR\x06source\"d\n" +
+	"\x06source\x18\x01 \x01(\v2\x12.sources.v1.SourceR\x06source\"3\n" +
 	"\x12ListSourcesRequest\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x01 \x01(\x03R\tprojectId\x12\x12\n" +
-	"\x04page\x18\x02 \x01(\x05R\x04page\x12\x1b\n" +
-	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\"Y\n" +
+	"project_id\x18\x01 \x01(\x03R\tprojectId\"C\n" +
 	"\x13ListSourcesResponse\x12,\n" +
-	"\asources\x18\x01 \x03(\v2\x12.sources.v1.SourceR\asources\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x05R\x05total\"D\n" +
+	"\asources\x18\x01 \x03(\v2\x12.sources.v1.SourceR\asources\"D\n" +
 	"\x13DeleteSourceRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x02 \x01(\x03R\tprojectId\"0\n" +
 	"\x14DeleteSourceResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess*\x98\x01\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\"M\n" +
+	"\x0fRetryJobRequest\x12\x1b\n" +
+	"\tsource_id\x18\x01 \x01(\x03R\bsourceId\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\x03R\tprojectId\")\n" +
+	"\x10RetryJobResponse\x12\x15\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId*\x98\x01\n" +
 	"\n" +
 	"SourceType\x12\x1b\n" +
 	"\x17SOURCE_TYPE_UNSPECIFIED\x10\x00\x12\x13\n" +
@@ -824,18 +956,21 @@ const file_proto_sources_sources_proto_rawDesc = "" +
 	"\x0fSOURCE_TYPE_TXT\x10\x02\x12\x14\n" +
 	"\x10SOURCE_TYPE_DOCX\x10\x03\x12\x18\n" +
 	"\x14SOURCE_TYPE_MARKDOWN\x10\x04\x12\x13\n" +
-	"\x0fSOURCE_TYPE_URL\x10\x05*\x99\x01\n" +
+	"\x0fSOURCE_TYPE_URL\x10\x05*\xd2\x01\n" +
 	"\fSourceStatus\x12\x1d\n" +
-	"\x19SOURCE_STATUS_UNSPECIFIED\x10\x00\x12\x19\n" +
-	"\x15SOURCE_STATUS_PENDING\x10\x01\x12\x1c\n" +
-	"\x18SOURCE_STATUS_PROCESSING\x10\x02\x12\x17\n" +
-	"\x13SOURCE_STATUS_READY\x10\x03\x12\x18\n" +
-	"\x14SOURCE_STATUS_FAILED\x10\x042\xcf\x02\n" +
+	"\x19SOURCE_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17SOURCE_STATUS_UPLOADING\x10\x01\x12\x1a\n" +
+	"\x16SOURCE_STATUS_UPLOADED\x10\x02\x12\x19\n" +
+	"\x15SOURCE_STATUS_PENDING\x10\x03\x12\x1c\n" +
+	"\x18SOURCE_STATUS_PROCESSING\x10\x04\x12\x17\n" +
+	"\x13SOURCE_STATUS_READY\x10\x05\x12\x18\n" +
+	"\x14SOURCE_STATUS_FAILED\x10\x062\x96\x03\n" +
 	"\x0eSourcesService\x12S\n" +
 	"\fUploadSource\x12\x1f.sources.v1.UploadSourceRequest\x1a .sources.v1.UploadSourceResponse(\x01\x12E\n" +
 	"\tGetSource\x12\x1c.sources.v1.GetSourceRequest\x1a\x1a.sources.v1.SourceResponse\x12N\n" +
 	"\vListSources\x12\x1e.sources.v1.ListSourcesRequest\x1a\x1f.sources.v1.ListSourcesResponse\x12Q\n" +
-	"\fDeleteSource\x12\x1f.sources.v1.DeleteSourceRequest\x1a .sources.v1.DeleteSourceResponseB8Z6github.com/rozoomcool/sihkaromicro/sources/gen/sourcesb\x06proto3"
+	"\fDeleteSource\x12\x1f.sources.v1.DeleteSourceRequest\x1a .sources.v1.DeleteSourceResponse\x12E\n" +
+	"\bRetryJob\x12\x1b.sources.v1.RetryJobRequest\x1a\x1c.sources.v1.RetryJobResponseB8Z6github.com/rozoomcool/sihkaromicro/sources/gen/sourcesb\x06proto3"
 
 var (
 	file_proto_sources_sources_proto_rawDescOnce sync.Once
@@ -850,7 +985,7 @@ func file_proto_sources_sources_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_sources_sources_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_proto_sources_sources_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_proto_sources_sources_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_proto_sources_sources_proto_goTypes = []any{
 	(SourceType)(0),               // 0: sources.v1.SourceType
 	(SourceStatus)(0),             // 1: sources.v1.SourceStatus
@@ -864,13 +999,15 @@ var file_proto_sources_sources_proto_goTypes = []any{
 	(*ListSourcesResponse)(nil),   // 9: sources.v1.ListSourcesResponse
 	(*DeleteSourceRequest)(nil),   // 10: sources.v1.DeleteSourceRequest
 	(*DeleteSourceResponse)(nil),  // 11: sources.v1.DeleteSourceResponse
-	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
+	(*RetryJobRequest)(nil),       // 12: sources.v1.RetryJobRequest
+	(*RetryJobResponse)(nil),      // 13: sources.v1.RetryJobResponse
+	(*timestamppb.Timestamp)(nil), // 14: google.protobuf.Timestamp
 }
 var file_proto_sources_sources_proto_depIdxs = []int32{
 	0,  // 0: sources.v1.Source.type:type_name -> sources.v1.SourceType
 	1,  // 1: sources.v1.Source.status:type_name -> sources.v1.SourceStatus
-	12, // 2: sources.v1.Source.created_at:type_name -> google.protobuf.Timestamp
-	12, // 3: sources.v1.Source.updated_at:type_name -> google.protobuf.Timestamp
+	14, // 2: sources.v1.Source.created_at:type_name -> google.protobuf.Timestamp
+	14, // 3: sources.v1.Source.updated_at:type_name -> google.protobuf.Timestamp
 	4,  // 4: sources.v1.UploadSourceRequest.meta:type_name -> sources.v1.SourceMeta
 	0,  // 5: sources.v1.SourceMeta.type:type_name -> sources.v1.SourceType
 	2,  // 6: sources.v1.SourceResponse.source:type_name -> sources.v1.Source
@@ -879,12 +1016,14 @@ var file_proto_sources_sources_proto_depIdxs = []int32{
 	6,  // 9: sources.v1.SourcesService.GetSource:input_type -> sources.v1.GetSourceRequest
 	8,  // 10: sources.v1.SourcesService.ListSources:input_type -> sources.v1.ListSourcesRequest
 	10, // 11: sources.v1.SourcesService.DeleteSource:input_type -> sources.v1.DeleteSourceRequest
-	5,  // 12: sources.v1.SourcesService.UploadSource:output_type -> sources.v1.UploadSourceResponse
-	7,  // 13: sources.v1.SourcesService.GetSource:output_type -> sources.v1.SourceResponse
-	9,  // 14: sources.v1.SourcesService.ListSources:output_type -> sources.v1.ListSourcesResponse
-	11, // 15: sources.v1.SourcesService.DeleteSource:output_type -> sources.v1.DeleteSourceResponse
-	12, // [12:16] is the sub-list for method output_type
-	8,  // [8:12] is the sub-list for method input_type
+	12, // 12: sources.v1.SourcesService.RetryJob:input_type -> sources.v1.RetryJobRequest
+	5,  // 13: sources.v1.SourcesService.UploadSource:output_type -> sources.v1.UploadSourceResponse
+	7,  // 14: sources.v1.SourcesService.GetSource:output_type -> sources.v1.SourceResponse
+	9,  // 15: sources.v1.SourcesService.ListSources:output_type -> sources.v1.ListSourcesResponse
+	11, // 16: sources.v1.SourcesService.DeleteSource:output_type -> sources.v1.DeleteSourceResponse
+	13, // 17: sources.v1.SourcesService.RetryJob:output_type -> sources.v1.RetryJobResponse
+	13, // [13:18] is the sub-list for method output_type
+	8,  // [8:13] is the sub-list for method input_type
 	8,  // [8:8] is the sub-list for extension type_name
 	8,  // [8:8] is the sub-list for extension extendee
 	0,  // [0:8] is the sub-list for field type_name
@@ -898,6 +1037,7 @@ func file_proto_sources_sources_proto_init() {
 	file_proto_sources_sources_proto_msgTypes[1].OneofWrappers = []any{
 		(*UploadSourceRequest_Meta)(nil),
 		(*UploadSourceRequest_Chunk)(nil),
+		(*UploadSourceRequest_Done)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -905,7 +1045,7 @@ func file_proto_sources_sources_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_sources_sources_proto_rawDesc), len(file_proto_sources_sources_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   10,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

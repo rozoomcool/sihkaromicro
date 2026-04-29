@@ -8,14 +8,17 @@ import "google/protobuf/timestamp.proto";
 
 // Sources service
 service SourcesService {
-  // UploadSource
-  rpc UploadSource  (stream UploadSourceRequest) returns (UploadSourceResponse);
-  // GetSource
-  rpc GetSource     (GetSourceRequest)           returns (SourceResponse);
-  // ListSources
-  rpc ListSources   (ListSourcesRequest)         returns (ListSourcesResponse);
-  // DeleteSource
-  rpc DeleteSource  (DeleteSourceRequest)        returns (DeleteSourceResponse);
+  // Upload source file
+  rpc UploadSource (stream UploadSourceRequest) returns (UploadSourceResponse);
+  // Get source by id
+  rpc GetSource (GetSourceRequest) returns (SourceResponse);
+  // List all sources in project
+  rpc ListSources (ListSourcesRequest) returns (ListSourcesResponse);
+  // Delete source
+  rpc DeleteSource (DeleteSourceRequest) returns (DeleteSourceResponse);
+  // Retry job if not started
+  rpc RetryJob (RetryJobRequest) returns (RetryJobResponse);
+
 }
 
 enum SourceType {
@@ -29,10 +32,12 @@ enum SourceType {
 
 enum SourceStatus {
   SOURCE_STATUS_UNSPECIFIED = 0;
-  SOURCE_STATUS_PENDING     = 1;
-  SOURCE_STATUS_PROCESSING  = 2;
-  SOURCE_STATUS_READY       = 3;
-  SOURCE_STATUS_FAILED      = 4;
+  SOURCE_STATUS_UPLOADING   = 1;
+  SOURCE_STATUS_UPLOADED    = 2;
+  SOURCE_STATUS_PENDING     = 3;
+  SOURCE_STATUS_PROCESSING  = 4;
+  SOURCE_STATUS_READY       = 5;
+  SOURCE_STATUS_FAILED      = 6;
 }
 
 message Source {
@@ -44,17 +49,19 @@ message Source {
   SourceStatus              status     = 6;
   int64                     size       = 7;
   string                    job_id     = 8;
-  google.protobuf.Timestamp created_at = 9;
-  google.protobuf.Timestamp updated_at = 10;
+  string                    url        = 9; // presigned URL для скачивания
+  string                    error      = 10; // причина ошибки
+  string                    source_url = 11; // оригинальный URL (только для SOURCE_TYPE_URL)
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
 }
 
-// File streamin
+// File streaming
 message UploadSourceRequest {
   oneof data {
-    // first message
-    SourceMeta meta = 1;
-    // file chunks
-    bytes chunk = 2;
+    SourceMeta meta  = 1; // первое сообщение — метаданные
+    bytes      chunk = 2; // чанки файла
+    bool       done  = 3; // последнее сообщение — файл передан полностью
   }
 }
 
@@ -62,14 +69,13 @@ message SourceMeta {
   int64      project_id = 1;
   string     name       = 2;
   SourceType type       = 3;
-  // File size
-  int64 size = 4;
+  int64      size       = 4;
+  string     source_url = 5; // только для SOURCE_TYPE_URL
 }
 
 message UploadSourceResponse {
-  int64 source_id = 1;
-  // Client monitors progress through the job service
-  string job_id = 2;
+  int64  source_id = 1;
+  string job_id    = 2;
 }
 
 message GetSourceRequest {
@@ -83,13 +89,10 @@ message SourceResponse {
 
 message ListSourcesRequest {
   int64 project_id = 1;
-  int32 page       = 2;
-  int32 page_size  = 3;
 }
 
 message ListSourcesResponse {
   repeated Source sources = 1;
-  int32           total   = 2;
 }
 
 message DeleteSourceRequest {
@@ -99,4 +102,13 @@ message DeleteSourceRequest {
 
 message DeleteSourceResponse {
   bool success = 1;
+}
+
+message RetryJobRequest {
+  int64 source_id  = 1;
+  int64 project_id = 2;
+}
+
+message RetryJobResponse {
+  string job_id = 1;
 }
