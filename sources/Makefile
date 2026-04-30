@@ -19,6 +19,6 @@ migrate-down:
 	$(MIGRATE) down 1
 
 migrate-create:
-	migrate create -ext sql -dir migrations -seq $(name)
+	migrate create -ext sql -dir migrations/sql -seq $(name)
 
 .PHONY: gen-proto-projects protogen build test  migrate-up migrate-down migrate-create
