@@ -8,7 +8,6 @@ import (
 
 	"github.com/rozoomcool/sihkaromicro/sources/internal/app"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/config"
-	"github.com/rozoomcool/sihkaromicro/sources/internal/model"
 	"github.com/rozoomcool/sihkaromicro/sources/pkg/database"
 	"github.com/rozoomcool/sihkaromicro/sources/pkg/logger"
 	"github.com/rozoomcool/sihkaromicro/sources/pkg/logger/sl"
@@ -26,12 +25,6 @@ func main() {
 	db, err := database.New(cfg.DB)
 	if err != nil {
 		log.Error("Error initialize database", sl.Err(err))
-		panic(err)
-	}
-
-	err = db.AutoMigrate(model.Source{})
-	if err != nil {
-		log.Error("Failed to init migrations", sl.Err(err))
 		panic(err)
 	}
 

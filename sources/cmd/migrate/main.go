@@ -39,13 +39,11 @@ func main() {
 			log.Fatal("failed to migrate up:", err)
 		}
 		fmt.Println("✅ migrations applied successfully")
-
 	case "down":
 		if err := m.Steps(-1); err != nil && err != migrate.ErrNoChange {
 			log.Fatal("failed to migrate down:", err)
 		}
 		fmt.Println("✅ migration rolled back")
-
 	case "version":
 		version, dirty, err := m.Version()
 		if err != nil {

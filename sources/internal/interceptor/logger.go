@@ -11,8 +11,8 @@ import (
 func NewUnaryLoggerInterceptor(log *slog.Logger) grpc.UnaryServerInterceptor {
 	loggingOpts := []logging.Option{
 		logging.WithLogOnEvents(
-			//logging.StartCall, logging.FinishCall,
-			logging.PayloadReceived, logging.PayloadSent,
+			logging.StartCall, logging.FinishCall,
+			// logging.PayloadReceived, logging.PayloadSent,
 		),
 	}
 	return logging.UnaryServerInterceptor(InterceptorLogger(log), loggingOpts...)

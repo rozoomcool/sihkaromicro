@@ -34,8 +34,3 @@ func New(cfg config.DBConf) (*gorm.DB, error) {
 
 	return db, nil
 }
-
-// AutoMigrate - для разработки (в проде лучше использовать golang-migrate)
-func AutoMigrate(db *gorm.DB) error {
-	return db.AutoMigrate()
-}
