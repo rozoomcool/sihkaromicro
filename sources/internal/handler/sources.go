@@ -82,7 +82,7 @@ func (h *SourceHandler) UploadSource(stream pb.SourcesService_UploadSourceServer
 	}
 
 	// 2. Проверяем лимит
-	count, err := h.repo.Count(stream.Context(), meta.ProjectId, userID)
+	count, err := h.repo.CountByProjectIDAndOwnerID(stream.Context(), meta.ProjectId, userID)
 	if err != nil {
 		log.Error("Check limits", sl.Err(err))
 		return status.Error(codes.Internal, "internal error")
@@ -113,7 +113,7 @@ func (h *SourceHandler) UploadSource(stream pb.SourcesService_UploadSourceServer
 			if err := h.minio.Delete(context.Background(), h.minio.ObjectName(userID, source.ID, source.Name)); err != nil {
 				log.Error("failed to cleanup minio", slog.Any("error", err))
 			}
-			if err := h.repo.Delete(context.Background(), source.ID, source.ProjectID, userID); err != nil {
+			if err := h.repo.DeleteByProjectIDAndOwnerID(context.Background(), source.ID, source.ProjectID, userID); err != nil {
 				log.Error("failed to cleanup source", slog.Any("error", err))
 			}
 		}
@@ -195,7 +195,7 @@ func (h *SourceHandler) UploadSource(stream pb.SourcesService_UploadSourceServer
 		log.Error("failed to update minio path", slog.Any("error", err))
 		return status.Error(codes.Internal, "failed to update source")
 	}
-	if err := h.repo.UpdateStatus(stream.Context(), source.ID, model.StatusUploaded, ""); err != nil {
+	if err := h.repo.UpdateStatusByJobID(stream.Context(), source.ID, model.StatusUploaded, ""); err != nil {
 		log.Error("failed to update status", slog.Any("error", err))
 		return status.Error(codes.Internal, "failed to update source")
 	}
@@ -213,7 +213,7 @@ func (h *SourceHandler) UploadSource(stream pb.SourcesService_UploadSourceServer
 	}
 
 	// 8. Обновляем статус → PENDING
-	if err := h.repo.UpdateStatus(stream.Context(), source.ID, model.StatusPending, jobID); err != nil {
+	if err := h.repo.UpdateStatusByJobID(stream.Context(), source.ID, model.StatusPending, jobID); err != nil {
 		log.Error("failed to update status to pending", slog.Any("error", err))
 	}
 
@@ -228,7 +228,7 @@ func (h *SourceHandler) UploadSource(stream pb.SourcesService_UploadSourceServer
 func (h *SourceHandler) RetryJob(ctx context.Context, req *pb.RetryJobRequest) (*pb.RetryJobResponse, error) {
 	userID := interceptor.MustUserIDFromCtx(ctx)
 
-	source, err := h.repo.Find(ctx, req.SourceId, req.ProjectId, userID)
+	source, err := h.repo.FindByProjectIDAndOwnerID(ctx, req.SourceId, req.ProjectId, userID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, status.Error(codes.NotFound, "source not found")
 	}
@@ -247,7 +247,7 @@ func (h *SourceHandler) RetryJob(ctx context.Context, req *pb.RetryJobRequest) (
 		return nil, status.Error(codes.Internal, "failed to publish job")
 	}
 
-	if err := h.repo.UpdateStatus(ctx, source.ID, model.StatusPending, jobID); err != nil {
+	if err := h.repo.UpdateStatusByJobID(ctx, source.ID, model.StatusPending, jobID); err != nil {
 		h.log.Error("failed to update status", slog.Any("error", err))
 	}
 
@@ -257,7 +257,7 @@ func (h *SourceHandler) RetryJob(ctx context.Context, req *pb.RetryJobRequest) (
 func (h *SourceHandler) GetSource(ctx context.Context, req *pb.GetSourceRequest) (*pb.SourceResponse, error) {
 	userID := interceptor.MustUserIDFromCtx(ctx)
 
-	source, err := h.repo.Find(ctx, req.Id, req.ProjectId, userID)
+	source, err := h.repo.FindByProjectIDAndOwnerID(ctx, req.Id, req.ProjectId, userID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, status.Error(codes.NotFound, "source not found")
 	}
@@ -282,7 +282,7 @@ func (h *SourceHandler) GetSource(ctx context.Context, req *pb.GetSourceRequest)
 func (h *SourceHandler) ListSources(ctx context.Context, req *pb.ListSourcesRequest) (*pb.ListSourcesResponse, error) {
 	userID := interceptor.MustUserIDFromCtx(ctx)
 
-	sources, err := h.repo.FindAll(ctx, req.ProjectId, userID)
+	sources, err := h.repo.FindAllByProjectIDAndOwnerID(ctx, req.ProjectId, userID)
 	if err != nil {
 		h.log.Error("failed to list sources", slog.Any("error", err))
 		return nil, status.Error(codes.Internal, "internal error")
@@ -308,7 +308,7 @@ func (h *SourceHandler) ListSources(ctx context.Context, req *pb.ListSourcesRequ
 func (h *SourceHandler) DeleteSource(ctx context.Context, req *pb.DeleteSourceRequest) (*pb.DeleteSourceResponse, error) {
 	userID := interceptor.MustUserIDFromCtx(ctx)
 
-	source, err := h.repo.Find(ctx, req.Id, req.ProjectId, userID)
+	source, err := h.repo.FindByProjectIDAndOwnerID(ctx, req.Id, req.ProjectId, userID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, status.Error(codes.NotFound, "source not found")
 	}
@@ -317,7 +317,7 @@ func (h *SourceHandler) DeleteSource(ctx context.Context, req *pb.DeleteSourceRe
 	}
 
 	// Удаляем source из БД
-	if err := h.repo.Delete(ctx, req.Id, req.ProjectId, userID); err != nil {
+	if err := h.repo.DeleteByProjectIDAndOwnerID(ctx, req.Id, req.ProjectId, userID); err != nil {
 		return nil, status.Error(codes.Internal, "internal error")
 	}
 

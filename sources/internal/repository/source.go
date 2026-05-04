@@ -9,12 +9,12 @@ import (
 
 type SourceRepository interface {
 	Save(ctx context.Context, source *model.Source) error
-	Find(ctx context.Context, id, projectID int64, ownerID string) (*model.Source, error)
-	FindAll(ctx context.Context, projectID int64, ownerID string) ([]model.Source, error)
-	Count(ctx context.Context, projectID int64, ownerID string) (int64, error)
-	UpdateStatus(ctx context.Context, id int64, status model.SourceStatus, jobID string) error
+	FindByProjectIDAndOwnerID(ctx context.Context, id, projectID int64, ownerID string) (*model.Source, error)
+	FindAllByProjectIDAndOwnerID(ctx context.Context, projectID int64, ownerID string) ([]model.Source, error)
+	CountByProjectIDAndOwnerID(ctx context.Context, projectID int64, ownerID string) (int64, error)
+	UpdateStatusByJobID(ctx context.Context, id int64, status model.SourceStatus, jobID string) error
 	UpdateMinioPath(ctx context.Context, id int64, minioPath string) error
-	Delete(ctx context.Context, id, projectID int64, ownerID string) error
+	DeleteByProjectIDAndOwnerID(ctx context.Context, id, projectID int64, ownerID string) error
 }
 
 type sourceRepository struct {
@@ -29,7 +29,7 @@ func (r *sourceRepository) Save(ctx context.Context, source *model.Source) error
 	return r.db.WithContext(ctx).Create(source).Error
 }
 
-func (r *sourceRepository) Find(ctx context.Context, id, projectID int64, ownerID string) (*model.Source, error) {
+func (r *sourceRepository) FindByProjectIDAndOwnerID(ctx context.Context, id, projectID int64, ownerID string) (*model.Source, error) {
 	var source model.Source
 	err := r.db.WithContext(ctx).
 		Where("id = ? AND project_id = ? AND owner_id = ?", id, projectID, ownerID).
@@ -40,7 +40,7 @@ func (r *sourceRepository) Find(ctx context.Context, id, projectID int64, ownerI
 	return &source, nil
 }
 
-func (r *sourceRepository) UpdateStatus(ctx context.Context, id int64, status model.SourceStatus, jobID string) error {
+func (r *sourceRepository) UpdateStatusByJobID(ctx context.Context, id int64, status model.SourceStatus, jobID string) error {
 	return r.db.WithContext(ctx).Model(&model.Source{}).
 		Where("id = ?", id).
 		Updates(map[string]any{
@@ -49,7 +49,7 @@ func (r *sourceRepository) UpdateStatus(ctx context.Context, id int64, status mo
 		}).Error
 }
 
-func (r *sourceRepository) Delete(ctx context.Context, id, projectID int64, ownerID string) error {
+func (r *sourceRepository) DeleteByProjectIDAndOwnerID(ctx context.Context, id, projectID int64, ownerID string) error {
 	result := r.db.WithContext(ctx).
 		Where("id = ? AND project_id = ? AND owner_id = ?", id, projectID, ownerID).
 		Delete(&model.Source{})
@@ -62,7 +62,7 @@ func (r *sourceRepository) Delete(ctx context.Context, id, projectID int64, owne
 	return nil
 }
 
-func (r *sourceRepository) FindAll(ctx context.Context, projectID int64, ownerID string) ([]model.Source, error) {
+func (r *sourceRepository) FindAllByProjectIDAndOwnerID(ctx context.Context, projectID int64, ownerID string) ([]model.Source, error) {
 	var sources []model.Source
 	err := r.db.WithContext(ctx).
 		Where("project_id = ? AND owner_id = ?", projectID, ownerID).
@@ -73,7 +73,7 @@ func (r *sourceRepository) FindAll(ctx context.Context, projectID int64, ownerID
 	return sources, nil
 }
 
-func (r *sourceRepository) Count(ctx context.Context, projectID int64, ownerID string) (int64, error) {
+func (r *sourceRepository) CountByProjectIDAndOwnerID(ctx context.Context, projectID int64, ownerID string) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&model.Source{}).
 		Where("project_id = ? AND owner_id = ?", projectID, ownerID).
