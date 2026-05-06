@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 
+	"github.com/rozoomcool/sihkaromicro/sources/internal/apperr"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/model"
 	"gorm.io/gorm"
 )
@@ -30,23 +31,23 @@ func (r *sourceRepository) Save(ctx context.Context, source *model.Source) error
 }
 
 func (r *sourceRepository) FindByProjectIDAndOwnerID(ctx context.Context, id, projectID int64, ownerID string) (*model.Source, error) {
-	var source model.Source
+	source := new(model.Source)
 	err := r.db.WithContext(ctx).
 		Where("id = ? AND project_id = ? AND owner_id = ?", id, projectID, ownerID).
-		First(&source).Error
+		First(source).Error
 	if err != nil {
-		return nil, err
+		return nil, apperr.FromGORM(err, "source FindByProjectIDAndOwnerID")
 	}
-	return &source, nil
+	return source, nil
 }
 
 func (r *sourceRepository) UpdateStatusByJobID(ctx context.Context, id int64, status model.SourceStatus, jobID string) error {
-	return r.db.WithContext(ctx).Model(&model.Source{}).
+	return apperr.FromGORM(r.db.WithContext(ctx).Model(&model.Source{}).
 		Where("id = ?", id).
 		Updates(map[string]any{
 			"status": status,
 			"job_id": jobID,
-		}).Error
+		}).Error, "source UpdateStatusByJobID")
 }
 
 func (r *sourceRepository) DeleteByProjectIDAndOwnerID(ctx context.Context, id, projectID int64, ownerID string) error {
@@ -54,10 +55,10 @@ func (r *sourceRepository) DeleteByProjectIDAndOwnerID(ctx context.Context, id, 
 		Where("id = ? AND project_id = ? AND owner_id = ?", id, projectID, ownerID).
 		Delete(&model.Source{})
 	if result.Error != nil {
-		return result.Error
+		return apperr.FromGORM(result.Error, "source DeleteByProjectIDAndOwnerID")
 	}
 	if result.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
+		return apperr.FromGORM(gorm.ErrRecordNotFound, "source DeleteByProjectIDAndOwnerID")
 	}
 	return nil
 }
@@ -68,7 +69,7 @@ func (r *sourceRepository) FindAllByProjectIDAndOwnerID(ctx context.Context, pro
 		Where("project_id = ? AND owner_id = ?", projectID, ownerID).
 		Find(&sources).Error
 	if err != nil {
-		return nil, err
+		return nil, apperr.FromGORM(err, "projectID or ownerID")
 	}
 	return sources, nil
 }
@@ -78,12 +79,15 @@ func (r *sourceRepository) CountByProjectIDAndOwnerID(ctx context.Context, proje
 	err := r.db.WithContext(ctx).Model(&model.Source{}).
 		Where("project_id = ? AND owner_id = ?", projectID, ownerID).
 		Count(&count).Error
+	if err != nil {
+		return 0, apperr.FromGORM(err, "projectID or ownerID")
+	}
 	return count, err
 }
 
 func (r *sourceRepository) UpdateMinioPath(ctx context.Context, id int64, minioPath string) error {
-	return r.db.WithContext(ctx).
+	return apperr.FromGORM(r.db.WithContext(ctx).
 		Model(&model.Source{}).
 		Where("id = ?", id).
-		Update("minio_path", minioPath).Error
+		Update("minio_path", minioPath).Error, "minioPath or sourceID")
 }
