@@ -29,6 +29,7 @@ func New(
 	repo repository.SourceRepository,
 	minio *service.MinioClient,
 	producer *kafka.Producer,
+	projectsClient service.ProjectsClient,
 	log *slog.Logger,
 	cfg *config.Config,
 ) *App {
@@ -46,8 +47,8 @@ func New(
 	))
 
 	// Setup project handler
-	projectHandler := handler.NewSourceHandler(repo, minio, producer, log)
-	projectHandler.Register(gRPCServer)
+	sourceHandler := handler.NewSourceHandler(repo, projectsClient, minio, producer, log)
+	sourceHandler.Register(gRPCServer)
 
 	// Setup health checking
 	healthcheck := health.NewServer()

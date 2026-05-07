@@ -15,6 +15,7 @@ import (
 	"github.com/rozoomcool/sihkaromicro/sources/internal/kafka"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/model"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/repository"
+	"github.com/rozoomcool/sihkaromicro/sources/internal/service"
 	minioclient "github.com/rozoomcool/sihkaromicro/sources/internal/service"
 	"github.com/rozoomcool/sihkaromicro/sources/pkg/logger/sl"
 	"google.golang.org/grpc"
@@ -35,23 +36,26 @@ var allowedContentTypes = map[string]bool{
 
 type SourceHandler struct {
 	pb.UnimplementedSourcesServiceServer
-	repo     repository.SourceRepository
-	minio    *minioclient.MinioClient
-	producer *kafka.Producer
-	log      *slog.Logger
+	repo           repository.SourceRepository
+	projectsClient service.ProjectsClient
+	minio          *minioclient.MinioClient
+	producer       *kafka.Producer
+	log            *slog.Logger
 }
 
 func NewSourceHandler(
 	repo repository.SourceRepository,
+	projectsClient service.ProjectsClient,
 	minio *minioclient.MinioClient,
 	producer *kafka.Producer,
 	log *slog.Logger,
 ) *SourceHandler {
 	return &SourceHandler{
-		repo:     repo,
-		minio:    minio,
-		producer: producer,
-		log:      log,
+		repo:           repo,
+		projectsClient: projectsClient,
+		minio:          minio,
+		producer:       producer,
+		log:            log,
 	}
 }
 

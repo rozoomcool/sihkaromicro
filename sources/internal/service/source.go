@@ -19,20 +19,23 @@ type SourceService interface {
 }
 
 type sourceService struct {
-	sourceRepo  repository.SourceRepository
-	log         *slog.Logger
-	minioClient *MinioClient
+	sourceRepo     repository.SourceRepository
+	projectsClient ProjectsClient
+	log            *slog.Logger
+	minioClient    *MinioClient
 }
 
 func NewSourceService(
 	sourceRepo repository.SourceRepository,
+	projectsClient ProjectsClient,
 	log *slog.Logger,
 	minioClient *MinioClient,
 ) SourceService {
 	return &sourceService{
-		sourceRepo:  sourceRepo,
-		log:         log,
-		minioClient: minioClient,
+		sourceRepo:     sourceRepo,
+		projectsClient: projectsClient,
+		log:            log,
+		minioClient:    minioClient,
 	}
 }
 
@@ -45,6 +48,15 @@ func (s *sourceService) AddSource(ctx context.Context, projectID int64, userID s
 		slog.String("userID", userID),
 	)
 
+	hasAccess, err := s.projectsClient.CheckAccess(ctx, projectID)
+	if err != nil {
+		log.Error("Projects client error", sl.Err(err))
+		return nil, status.Error(codes.Internal, "internal error")
+	}
+	if !hasAccess {
+		return nil, status.Error(codes.PermissionDenied, "User has not permissions to project")
+	}
+
 	count, err := s.sourceRepo.CountByProjectIDAndOwnerID(ctx, projectID, userID)
 	if err != nil {
 		log.Error("Check limits", sl.Err(err))
@@ -54,5 +66,5 @@ func (s *sourceService) AddSource(ctx context.Context, projectID int64, userID s
 		log.Error("Max sources uploaded", sl.Err(err))
 		return nil, status.Errorf(codes.FailedPrecondition, "project has reached the limit of %d sources", maxSourcesPerProject)
 	}
-
+	return nil, nil
 }

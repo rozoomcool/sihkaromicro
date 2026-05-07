@@ -4,17 +4,21 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/rozoomcool/sihkaromicro/projects/gen/proto/projects"
+	pb "github.com/rozoomcool/sihkaromicro/proto/projects"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 )
 
-type ProjectsClient struct {
+type ProjectsClient interface {
+	CheckAccess(ctx context.Context, projectID int64) (bool, error)
+}
+
+type projectsClient struct {
 	client pb.ProjectsServiceClient
 }
 
-func NewProjectsClient(addr string) (*ProjectsClient, error) {
+func NewProjectsClient(addr string) (ProjectsClient, error) {
 	conn, err := grpc.NewClient(
 		addr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -23,14 +27,14 @@ func NewProjectsClient(addr string) (*ProjectsClient, error) {
 		return nil, fmt.Errorf("failed to connect to projects service: %w", err)
 	}
 
-	return &ProjectsClient{
+	return &projectsClient{
 		client: pb.NewProjectsServiceClient(conn),
 	}, nil
 }
 
 // CheckAccess — проверяем что проект принадлежит пользователю
 // Пробрасываем токен пользователя
-func (c *ProjectsClient) CheckAccess(ctx context.Context, projectID int64) (bool, error) {
+func (c *projectsClient) CheckAccess(ctx context.Context, projectID int64) (bool, error) {
 	// Пробрасываем токен из входящего контекста в исходящий
 	md, ok := metadata.FromIncomingContext(ctx)
 	if ok {

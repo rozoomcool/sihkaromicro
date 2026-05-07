@@ -25,12 +25,16 @@ func NewApp(
 	sourceRepo := repository.NewSourceRepository(db)
 	minioClient, err := service.NewMinioClient(cfg.MinIO)
 	kafkaProducer := kafka.NewProducer(cfg.Kafka)
+	projectsClient, err := service.NewProjectsClient(cfg.ProjectsUrl)
+	if err != nil {
+		panic(err)
+	}
 
 	if err != nil {
 		panic("Unable connect to MinIO")
 	}
 
-	grpcServer := grpcapp.New(sourceRepo, minioClient, kafkaProducer, log, cfg)
+	grpcServer := grpcapp.New(sourceRepo, minioClient, kafkaProducer, projectsClient, log, cfg)
 
 	return &App{GRPCServer: grpcServer, log: log}
 }
