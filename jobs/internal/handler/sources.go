@@ -3,7 +3,7 @@ package handler
 import (
 	"log/slog"
 
-	pb "github.com/rozoomcool/sihkaromicro/jobs/gen/proto/jobs"
+	pb "github.com/rozoomcool/sihkaromicro/proto/jobs"
 	"google.golang.org/grpc"
 )
 
