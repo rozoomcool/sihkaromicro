@@ -3,7 +3,7 @@ package model
 import (
 	"time"
 
-	pb "github.com/rozoomcool/sihkaromicro/sources/gen/proto/sources"
+	pb "github.com/rozoomcool/sihkaromicro/proto/sources"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

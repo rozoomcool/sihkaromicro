@@ -1,7 +1,7 @@
 package model
 
 import (
-	pb "github.com/rozoomcool/sihkaromicro/projects/gen/proto/projects"
+	pb "github.com/rozoomcool/sihkaromicro/proto/projects"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

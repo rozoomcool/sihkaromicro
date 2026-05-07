@@ -48,10 +48,11 @@ func (s *sourceService) AddSource(ctx context.Context, projectID int64, userID s
 	count, err := s.sourceRepo.CountByProjectIDAndOwnerID(ctx, projectID, userID)
 	if err != nil {
 		log.Error("Check limits", sl.Err(err))
-		return status.Error(codes.Internal, "internal error")
+		return nil, status.Error(codes.Internal, "internal error")
 	}
 	if count >= maxSourcesPerProject {
 		log.Error("Max sources uploaded", sl.Err(err))
-		return status.Errorf(codes.FailedPrecondition, "project has reached the limit of %d sources", maxSourcesPerProject)
+		return nil, status.Errorf(codes.FailedPrecondition, "project has reached the limit of %d sources", maxSourcesPerProject)
 	}
+
 }

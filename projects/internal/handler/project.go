@@ -5,9 +5,9 @@ import (
 	"errors"
 	"log/slog"
 
-	pb "github.com/rozoomcool/sihkaromicro/projects/gen/proto/projects"
 	"github.com/rozoomcool/sihkaromicro/projects/internal/interceptor"
 	"github.com/rozoomcool/sihkaromicro/projects/internal/service"
+	pb "github.com/rozoomcool/sihkaromicro/proto/projects"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

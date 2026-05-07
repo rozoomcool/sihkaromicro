@@ -88,6 +88,7 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET}
       KAFKA_BROKERS: kafka:29092
       KAFKA_TOPIC: jobs.chunking
+      PROJECTS_URL: projects:${PROJECTS_GRPC_PORT}
     networks:
       - gateway
       - sources-db-network

@@ -45,8 +45,10 @@ type Config struct {
 
 	DB       DBConf      `mapstructure:"db"`
 	Keycloak KeycloakCfg `mapstructure:"keycloak"`
-	MinIO    MinIOConfig
-	Kafka    KafkaConfig
+	MinIO    MinIOConfig `mapstructure:"minio"`
+	Kafka    KafkaConfig `mapstructure:"kafka"`
+
+	ProjectsUrl string `mapstructure:"PROJECTS_URL"`
 }
 
 func MustLoad() *Config {
@@ -76,6 +78,8 @@ func MustLoad() *Config {
 		Brokers: strings.Split(os.Getenv("KAFKA_BROKERS"), ","),
 		Topic:   os.Getenv("KAFKA_TOPIC"),
 	}
+
+	cfg.ProjectsUrl = os.Getenv("PROJECTS_URL")
 
 	return &cfg
 }

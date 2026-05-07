@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 
-	pb "github.com/rozoomcool/sihkaromicro/sources/gen/proto/sources"
+	pb "github.com/rozoomcool/sihkaromicro/proto/sources"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"

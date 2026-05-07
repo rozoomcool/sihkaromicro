@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package auth;
 
-option go_package = "gihub.com/rozoomcool/sihkaromicro/auth/gen/auth";
+option go_package = "gihub.com/rozoomcool/sihkaromicro/proto/auth";
 
 // Auth service for authorizing clients
 service Auth {

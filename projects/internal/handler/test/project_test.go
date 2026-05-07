@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	pb "github.com/rozoomcool/sihkaromicro/projects/gen/proto/projects"
 	"github.com/rozoomcool/sihkaromicro/projects/internal/dto"
 	"github.com/rozoomcool/sihkaromicro/projects/internal/handler"
 	"github.com/rozoomcool/sihkaromicro/projects/internal/model"
 	svcmock "github.com/rozoomcool/sihkaromicro/projects/internal/service/mock"
 	"github.com/rozoomcool/sihkaromicro/projects/internal/testutil"
+	pb "github.com/rozoomcool/sihkaromicro/proto/projects"
 )
 
 var testLogger = slog.New(slog.NewTextHandler(os.Stdout, nil))

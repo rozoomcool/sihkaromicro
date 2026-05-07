@@ -10,7 +10,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	pb "github.com/rozoomcool/sihkaromicro/sources/gen/proto/sources"
+	pb "github.com/rozoomcool/sihkaromicro/proto/sources"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/interceptor"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/kafka"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/model"

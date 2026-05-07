@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package projects;
 
-option go_package = "github.com/rozoomcool/sihkaromicro/projects/gen/projects";
+option go_package = "github.com/rozoomcool/sihkaromicro/proto/projects";
 
 import "google/protobuf/timestamp.proto";
 

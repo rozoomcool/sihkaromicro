@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"net/url"
 
-	pb "github.com/rozoomcool/sihkaromicro/auth/gen/proto/auth"
 	"github.com/rozoomcool/sihkaromicro/auth/internal/config"
 	"github.com/rozoomcool/sihkaromicro/auth/pkg/logger/sl"
+	pb "github.com/rozoomcool/sihkaromicro/proto/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
