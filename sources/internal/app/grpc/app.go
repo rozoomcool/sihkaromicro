@@ -26,6 +26,7 @@ type App struct {
 
 // New creates new gRPC server app.
 func New(
+	sourceService service.SourceService,
 	repo repository.SourceRepository,
 	minio *service.MinioClient,
 	producer *kafka.Producer,
@@ -47,7 +48,7 @@ func New(
 	))
 
 	// Setup project handler
-	sourceHandler := handler.NewSourceHandler(repo, projectsClient, minio, producer, log)
+	sourceHandler := handler.NewSourceHandler(sourceService, repo, projectsClient, minio, producer, log)
 	sourceHandler.Register(gRPCServer)
 
 	// Setup health checking

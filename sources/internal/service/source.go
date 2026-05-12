@@ -4,18 +4,19 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/rozoomcool/sihkaromicro/sources/internal/apperr"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/model"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/repository"
 	"github.com/rozoomcool/sihkaromicro/sources/pkg/logger/sl"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 const maxSourcesPerProject = 20
 const maxFileSize = 1 * 1024 * 1024 * 1024 // 1GB
 
 type SourceService interface {
-	AddSource(ctx context.Context, projectID int64, ownerID string) (*model.Source, error)
+	CheckProjectAccess(ctx context.Context, projectID int64, ownerID string) error
+	AddSource(ctx context.Context, source *model.Source) error
+	CheckLimits(ctx context.Context, projectID int64, userID string) error
 }
 
 type sourceService struct {
@@ -39,32 +40,57 @@ func NewSourceService(
 	}
 }
 
-// AddSource implements SourceService.
-func (s *sourceService) AddSource(ctx context.Context, projectID int64, userID string) (*model.Source, error) {
+func (s *sourceService) CheckProjectAccess(ctx context.Context, projectID int64, ownerID string) error {
+	op := "SourceService.CheckProjectAccess"
+
+	log := s.log.With(
+		slog.String("op", op),
+		slog.String("userID", ownerID),
+	)
+
+	hasAccess, err := s.projectsClient.CheckAccess(ctx, projectID)
+	if err != nil {
+		log.Error("projects client error", sl.Err(err))
+		return apperr.Unavailable("projects service")
+	}
+	if !hasAccess {
+		return apperr.ErrPermissionDenied
+	}
+	return nil
+}
+
+func (s *sourceService) AddSource(ctx context.Context, source *model.Source) error {
 	op := "SourceService.AddSource"
+
+	log := s.log.With(
+		slog.String("op", op),
+		slog.String("userID", source.OwnerID),
+	)
+
+	if err := s.sourceRepo.Save(ctx, source); err != nil {
+		log.Error("failed to save source", sl.Err(err))
+		return apperr.Unavailable("source repository")
+	}
+
+	return nil
+}
+
+func (s *sourceService) CheckLimits(ctx context.Context, projectID int64, userID string) error {
+	op := "SourceService.CheckLimits"
 
 	log := s.log.With(
 		slog.String("op", op),
 		slog.String("userID", userID),
 	)
 
-	hasAccess, err := s.projectsClient.CheckAccess(ctx, projectID)
-	if err != nil {
-		log.Error("Projects client error", sl.Err(err))
-		return nil, status.Error(codes.Internal, "internal error")
-	}
-	if !hasAccess {
-		return nil, status.Error(codes.PermissionDenied, "User has not permissions to project")
-	}
-
 	count, err := s.sourceRepo.CountByProjectIDAndOwnerID(ctx, projectID, userID)
 	if err != nil {
-		log.Error("Check limits", sl.Err(err))
-		return nil, status.Error(codes.Internal, "internal error")
+		log.Error("failed to count sources", sl.Err(err))
+		return apperr.Unavailable("source repository")
 	}
 	if count >= maxSourcesPerProject {
-		log.Error("Max sources uploaded", sl.Err(err))
-		return nil, status.Errorf(codes.FailedPrecondition, "project has reached the limit of %d sources", maxSourcesPerProject)
+		return apperr.LimitExceeded("max sources per project reached")
 	}
-	return nil, nil
+
+	return nil
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	pb "github.com/rozoomcool/sihkaromicro/proto/sources"
+	"github.com/rozoomcool/sihkaromicro/sources/internal/apperr"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/interceptor"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/kafka"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/model"
@@ -36,6 +37,7 @@ var allowedContentTypes = map[string]bool{
 
 type SourceHandler struct {
 	pb.UnimplementedSourcesServiceServer
+	srv            service.SourceService
 	repo           repository.SourceRepository
 	projectsClient service.ProjectsClient
 	minio          *minioclient.MinioClient
@@ -44,6 +46,7 @@ type SourceHandler struct {
 }
 
 func NewSourceHandler(
+	srv service.SourceService,
 	repo repository.SourceRepository,
 	projectsClient service.ProjectsClient,
 	minio *minioclient.MinioClient,
@@ -51,6 +54,7 @@ func NewSourceHandler(
 	log *slog.Logger,
 ) *SourceHandler {
 	return &SourceHandler{
+		srv:            srv,
 		repo:           repo,
 		projectsClient: projectsClient,
 		minio:          minio,
@@ -64,15 +68,17 @@ func (h *SourceHandler) Register(server *grpc.Server) {
 }
 
 func (h *SourceHandler) UploadSource(stream pb.SourcesService_UploadSourceServer) error {
+	ctx := stream.Context()
+
 	op := "Source.UploadSource"
-	userID := interceptor.MustUserIDFromCtx(stream.Context())
+	userID := interceptor.MustUserIDFromCtx(ctx)
 
 	log := h.log.With(
 		slog.String("op", op),
 		slog.String("userID", userID),
 	)
 
-	// 1. Получаем метаданные
+	// Get metadata
 	first, err := stream.Recv()
 	if err != nil {
 		log.Error("Error get metadata", sl.Err(err))
@@ -85,18 +91,17 @@ func (h *SourceHandler) UploadSource(stream pb.SourcesService_UploadSourceServer
 		return status.Error(codes.InvalidArgument, "first message must contain metadata")
 	}
 
-	// 2. Проверяем лимит
-	count, err := h.repo.CountByProjectIDAndOwnerID(stream.Context(), meta.ProjectId, userID)
-	if err != nil {
-		log.Error("Check limits", sl.Err(err))
-		return status.Error(codes.Internal, "internal error")
-	}
-	if count >= maxSourcesPerProject {
-		log.Error("Max sources uploaded", sl.Err(err))
-		return status.Errorf(codes.FailedPrecondition, "project has reached the limit of %d sources", maxSourcesPerProject)
+	// Check access to project
+	if err := h.srv.CheckProjectAccess(ctx, meta.ProjectId, userID); err != nil {
+		return apperr.ToGRPC(err)
 	}
 
-	// 3. Создаём source со статусом UPLOADING
+	// Check source limits
+	if err := h.srv.CheckLimits(ctx, meta.ProjectId, userID); err != nil {
+		return apperr.ToGRPC(err)
+	}
+
+	// Creating source with status UPLOADING
 	source := &model.Source{
 		ProjectID: meta.ProjectId,
 		OwnerID:   userID,
@@ -105,9 +110,8 @@ func (h *SourceHandler) UploadSource(stream pb.SourcesService_UploadSourceServer
 		Status:    model.StatusUploading,
 		Size:      meta.Size,
 	}
-	if err := h.repo.Save(stream.Context(), source); err != nil {
-		log.Error("failed to save source", slog.Any("error", err))
-		return status.Error(codes.Internal, "failed to create source")
+	if err := h.srv.AddSource(ctx, source); err != nil {
+		return apperr.ToGRPC(err)
 	}
 
 	// Cleanup при любой ошибке
