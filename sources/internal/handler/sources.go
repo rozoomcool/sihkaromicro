@@ -65,10 +65,11 @@ func (h *SourceHandler) Register(server *grpc.Server) {
 	pb.RegisterSourcesServiceServer(server, h)
 }
 
+// handler.go
+
 func (h *SourceHandler) UploadSource(stream pb.SourcesService_UploadSourceServer) error {
 	ctx := stream.Context()
-
-	op := "Source.UploadSource"
+	op := "SourceHandler.UploadSource"
 	userID := interceptor.MustUserIDFromCtx(ctx)
 
 	log := h.log.With(
@@ -76,158 +77,40 @@ func (h *SourceHandler) UploadSource(stream pb.SourcesService_UploadSourceServer
 		slog.String("userID", userID),
 	)
 
-	// Get metadata
+	// Extract metadata
 	first, err := stream.Recv()
 	if err != nil {
-		log.Error("Error get metadata", sl.Err(err))
+		log.Error("failed to receive metadata", sl.Err(err))
 		return status.Error(codes.InvalidArgument, "failed to receive metadata")
 	}
 
 	meta := first.GetMeta()
 	if meta == nil {
-		log.Error("First message must contain metadata", sl.Err(err))
 		return status.Error(codes.InvalidArgument, "first message must contain metadata")
 	}
 
-	// Check access to project
-	if err := h.srv.CheckProjectAccess(ctx, meta.ProjectId, userID); err != nil {
+	buf, contentType, err := receiveChunks(stream)
+	if err != nil {
+		log.Error("Error while receiveChunks", sl.Err(err))
+		return err
+	}
+
+	result, err := h.srv.UploadSource(ctx, service.UploadSourceRequest{
+		ProjectID:   meta.ProjectId,
+		OwnerID:     userID,
+		Name:        meta.Name,
+		Type:        protoTypeToModel(meta.Type),
+		Size:        meta.Size,
+		ContentType: contentType,
+		Reader:      buf,
+	})
+	if err != nil {
 		return apperr.ToGRPC(err)
 	}
-
-	// Check source limits
-	if err := h.srv.CheckLimits(ctx, meta.ProjectId, userID); err != nil {
-		return apperr.ToGRPC(err)
-	}
-
-	// Creating source with status UPLOADING
-	source := &model.Source{
-		ProjectID: meta.ProjectId,
-		OwnerID:   userID,
-		Name:      meta.Name,
-		Type:      protoTypeToModel(meta.Type),
-		Status:    model.StatusUploading,
-		Size:      meta.Size,
-	}
-	if err := h.srv.AddSource(ctx, source); err != nil {
-		return apperr.ToGRPC(err)
-	}
-
-	// Cleanup при любой ошибке
-	var uploadSuccess bool
-	defer func() {
-		if !uploadSuccess {
-			if err := h.minio.Delete(context.Background(), h.minio.ObjectName(userID, source.ID, source.Name)); err != nil {
-				log.Error("failed to cleanup minio", slog.Any("error", err))
-			}
-			if err := h.repo.DeleteByProjectIDAndOwnerID(context.Background(), source.ID, source.ProjectID, userID); err != nil {
-				log.Error("failed to cleanup source", slog.Any("error", err))
-			}
-		}
-	}()
-
-	log.Info("Proccessing chunks")
-	// 4. Стримим чанки
-	buf := &bytes.Buffer{}
-	var totalSize int64
-	firstChunk := true
-	doneReceived := false
-
-	for {
-		msg, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Error("Stream error", sl.Err(err))
-			return status.Error(codes.Internal, "stream error")
-		}
-
-		// Финальный сигнал от клиента
-		if msg.GetDone() {
-			doneReceived = true
-			break
-		}
-
-		chunk := msg.GetChunk()
-		if chunk == nil {
-			log.Error("Excepter chunk or done signal")
-			return status.Error(codes.InvalidArgument, "expected chunk or done signal")
-		}
-
-		log.Info("Start magic bytes validation")
-		// Валидация magic bytes по первому чанку
-		if firstChunk {
-			if len(chunk) < 512 {
-				log.Error("First chunk too small for validating")
-				return status.Error(codes.InvalidArgument, "first chunk too small for validation")
-			}
-			contentType := http.DetectContentType(chunk)
-			if !allowedContentTypes[contentType] {
-				log.Error("Invalid file type")
-				return status.Errorf(codes.InvalidArgument, "invalid file type: %s", contentType)
-			}
-			firstChunk = false
-		}
-
-		// Проверяем размер
-		totalSize += int64(len(chunk))
-		if totalSize > maxFileSize {
-			log.Error("File too large")
-			return status.Error(codes.InvalidArgument, "file too large")
-		}
-
-		buf.Write(chunk)
-	}
-
-	// Клиент не сказал done — соединение разорвалось
-	if !doneReceived {
-		log.Error("Lost connection")
-		return status.Error(codes.Canceled, "upload incomplete: connection lost")
-	}
-	if buf.Len() == 0 {
-		log.Error("Empty file")
-		return status.Error(codes.InvalidArgument, "empty file")
-	}
-
-	// 5. Загружаем в MinIO
-	objectName := h.minio.ObjectName(userID, source.ID, meta.Name)
-	if err := h.minio.Upload(stream.Context(), objectName, buf, int64(buf.Len()), sourceTypeToContentType(source.Type)); err != nil {
-		log.Error("failed to upload to minio", slog.Any("error", err))
-		return status.Error(codes.Internal, "failed to upload file")
-	}
-
-	// 6. Обновляем статус → UPLOADED
-	if err := h.repo.UpdateMinioPath(stream.Context(), source.ID, objectName); err != nil {
-		log.Error("failed to update minio path", slog.Any("error", err))
-		return status.Error(codes.Internal, "failed to update source")
-	}
-	if err := h.repo.UpdateStatusByJobID(stream.Context(), source.ID, model.StatusUploaded, ""); err != nil {
-		log.Error("failed to update status", slog.Any("error", err))
-		return status.Error(codes.Internal, "failed to update source")
-	}
-
-	// 7. Публикуем job в Kafka
-	jobID := uuid.New().String()
-	if err := h.publishCreateJob(stream.Context(), jobID, userID, source.ID, objectName, string(source.Type)); err != nil {
-		// Не фатально — клиент может запустить retry
-		log.Error("failed to publish job", slog.Any("error", err))
-		uploadSuccess = true
-		return stream.SendAndClose(&pb.UploadSourceResponse{
-			SourceId: source.ID,
-			JobId:    "", // пустой — клиент видит UPLOADED без job
-		})
-	}
-
-	// 8. Обновляем статус → PENDING
-	if err := h.repo.UpdateStatusByJobID(stream.Context(), source.ID, model.StatusPending, jobID); err != nil {
-		log.Error("failed to update status to pending", slog.Any("error", err))
-	}
-
-	uploadSuccess = true
 
 	return stream.SendAndClose(&pb.UploadSourceResponse{
-		SourceId: source.ID,
-		JobId:    jobID,
+		SourceId: result.SourceID,
+		JobId:    result.JobID,
 	})
 }
 
@@ -418,4 +301,59 @@ func sourceTypeToContentType(t model.SourceType) string {
 	default:
 		return "text/plain"
 	}
+}
+
+func receiveChunks(stream pb.SourcesService_UploadSourceServer) (*bytes.Buffer, string, error) {
+	buf := &bytes.Buffer{}
+	var totalSize int64
+	var contentType string
+	firstChunk := true
+	doneReceived := false
+
+	for {
+		msg, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, "", status.Error(codes.Internal, "stream error")
+		}
+
+		if msg.GetDone() {
+			doneReceived = true
+			break
+		}
+
+		chunk := msg.GetChunk()
+		if chunk == nil {
+			return nil, "", status.Error(codes.InvalidArgument, "expected chunk or done signal")
+		}
+
+		if firstChunk {
+			if len(chunk) < 512 {
+				return nil, "", status.Error(codes.InvalidArgument, "first chunk too small for validation")
+			}
+			contentType = http.DetectContentType(chunk)
+			if !allowedContentTypes[contentType] {
+				return nil, "", status.Errorf(codes.InvalidArgument, "invalid file type: %s", contentType)
+			}
+			firstChunk = false
+		}
+
+		totalSize += int64(len(chunk))
+		if totalSize > maxFileSize {
+			return nil, "", status.Error(codes.InvalidArgument, "file too large")
+		}
+
+		buf.Write(chunk)
+	}
+
+	if !doneReceived {
+		return nil, "", status.Error(codes.Canceled, "upload incomplete: connection lost")
+	}
+	if buf.Len() == 0 {
+		return nil, "", status.Error(codes.InvalidArgument, "empty file")
+	}
+
+	return buf, contentType, nil
 }
