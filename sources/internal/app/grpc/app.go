@@ -9,7 +9,6 @@ import (
 	"github.com/rozoomcool/sihkaromicro/sources/internal/config"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/handler"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/interceptor"
-	"github.com/rozoomcool/sihkaromicro/sources/internal/kafka"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/repository"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/service"
 	"google.golang.org/grpc"
@@ -28,8 +27,8 @@ type App struct {
 func New(
 	sourceService service.SourceService,
 	repo repository.SourceRepository,
-	minio *service.MinioClient,
-	producer *kafka.Producer,
+	minio service.StorageService,
+	producer service.MessageProducer,
 	projectsClient service.ProjectsClient,
 	log *slog.Logger,
 	cfg *config.Config,

@@ -13,11 +13,9 @@ import (
 	pb "github.com/rozoomcool/sihkaromicro/proto/sources"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/apperr"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/interceptor"
-	"github.com/rozoomcool/sihkaromicro/sources/internal/kafka"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/model"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/repository"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/service"
-	minioclient "github.com/rozoomcool/sihkaromicro/sources/internal/service"
 	"github.com/rozoomcool/sihkaromicro/sources/pkg/logger/sl"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -40,8 +38,8 @@ type SourceHandler struct {
 	srv            service.SourceService
 	repo           repository.SourceRepository
 	projectsClient service.ProjectsClient
-	minio          *minioclient.MinioClient
-	producer       *kafka.Producer
+	minio          service.StorageService
+	producer       service.MessageProducer
 	log            *slog.Logger
 }
 
@@ -49,8 +47,8 @@ func NewSourceHandler(
 	srv service.SourceService,
 	repo repository.SourceRepository,
 	projectsClient service.ProjectsClient,
-	minio *minioclient.MinioClient,
-	producer *kafka.Producer,
+	minio service.StorageService,
+	producer service.MessageProducer,
 	log *slog.Logger,
 ) *SourceHandler {
 	return &SourceHandler{

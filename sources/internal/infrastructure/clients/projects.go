@@ -1,4 +1,4 @@
-package service
+package clients
 
 import (
 	"context"
@@ -10,15 +10,11 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-type ProjectsClient interface {
-	CheckAccess(ctx context.Context, projectID int64) (bool, error)
-}
-
-type projectsClient struct {
+type ProjectsClient struct {
 	client pb.ProjectsServiceClient
 }
 
-func NewProjectsClient(addr string) (ProjectsClient, error) {
+func NewProjectsClient(addr string) (*ProjectsClient, error) {
 	conn, err := grpc.NewClient(
 		addr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -27,15 +23,12 @@ func NewProjectsClient(addr string) (ProjectsClient, error) {
 		return nil, fmt.Errorf("failed to connect to projects service: %w", err)
 	}
 
-	return &projectsClient{
+	return &ProjectsClient{
 		client: pb.NewProjectsServiceClient(conn),
 	}, nil
 }
 
-// CheckAccess — проверяем что проект принадлежит пользователю
-// Пробрасываем токен пользователя
-func (c *projectsClient) CheckAccess(ctx context.Context, projectID int64) (bool, error) {
-	// Пробрасываем токен из входящего контекста в исходящий
+func (c *ProjectsClient) CheckAccess(ctx context.Context, projectID int64) (bool, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if ok {
 		ctx = metadata.NewOutgoingContext(ctx, md)
