@@ -71,6 +71,10 @@ func NewSourceService(
 }
 
 func (s *sourceService) GetSource(ctx context.Context, id, projectID int64, ownerID string) (*SourceDetail, error) {
+	if err := s.checkProjectAccess(ctx, projectID, ownerID); err != nil {
+		return nil, err
+	}
+
 	source, err := s.sourceRepo.FindByProjectIDAndOwnerID(ctx, id, projectID, ownerID)
 	if err != nil {
 		return nil, err
@@ -89,6 +93,10 @@ func (s *sourceService) GetSource(ctx context.Context, id, projectID int64, owne
 }
 
 func (s *sourceService) ListSources(ctx context.Context, projectID int64, ownerID string) ([]*SourceDetail, error) {
+	if err := s.checkProjectAccess(ctx, projectID, ownerID); err != nil {
+		return nil, err
+	}
+
 	sources, err := s.sourceRepo.FindAllByProjectIDAndOwnerID(ctx, projectID, ownerID)
 	if err != nil {
 		return nil, err
@@ -111,6 +119,10 @@ func (s *sourceService) ListSources(ctx context.Context, projectID int64, ownerI
 }
 
 func (s *sourceService) DeleteSource(ctx context.Context, id, projectID int64, ownerID string) error {
+	if err := s.checkProjectAccess(ctx, projectID, ownerID); err != nil {
+		return err
+	}
+
 	source, err := s.sourceRepo.FindByProjectIDAndOwnerID(ctx, id, projectID, ownerID)
 	if err != nil {
 		return err
@@ -138,6 +150,10 @@ func (s *sourceService) DeleteSource(ctx context.Context, id, projectID int64, o
 }
 
 func (s *sourceService) RetryJob(ctx context.Context, id, projectID int64, ownerID string) (string, error) {
+	if err := s.checkProjectAccess(ctx, projectID, ownerID); err != nil {
+		return "", err
+	}
+
 	source, err := s.sourceRepo.FindByProjectIDAndOwnerID(ctx, id, projectID, ownerID)
 	if err != nil {
 		return "", err
@@ -244,10 +260,16 @@ func (s *sourceService) UploadSource(ctx context.Context, req UploadSourceReques
 	return &UploadSourceResult{SourceID: source.ID, JobID: jobID}, nil
 }
 
+// checkProjectAccess verifies that the authenticated user (identified via the
+// JWT forwarded in ctx metadata) has access to the given project.
+// The actual user→project membership check is performed by the projects service.
 func (s *sourceService) checkProjectAccess(ctx context.Context, projectID int64, ownerID string) error {
 	hasAccess, err := s.projectsClient.CheckAccess(ctx, projectID)
 	if err != nil {
-		s.log.Error("projects client error", sl.Err(err), slog.String("userID", ownerID))
+		s.log.Error("projects client error", sl.Err(err),
+			slog.String("userID", ownerID),
+			slog.Int64("projectID", projectID),
+		)
 		return apperr.Unavailable("projects service")
 	}
 	if !hasAccess {
