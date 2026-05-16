@@ -19,10 +19,10 @@ type contextKey string
 const UserIDKey contextKey = "user_id"
 
 type Claims struct {
-	Sub               string `json:"sub"` // user_id
+	Sub               string `json:"sub"`
 	PreferredUsername string `json:"preferred_username"`
 	Email             string `json:"email"`
-	Azp               string `json:"azp"` // client_id
+	Azp               string `json:"azp"`
 }
 
 type AuthInterceptor struct {
@@ -36,8 +36,7 @@ func NewAuthInterceptor(ctx context.Context, cfg config.KeycloakCfg) (*AuthInter
 	}
 
 	verifier := provider.Verifier(&oidc.Config{
-		ClientID:          cfg.Client.ID,
-		SkipClientIDCheck: true,
+		ClientID: cfg.Client.ID,
 	})
 
 	return &AuthInterceptor{verifier: verifier}, nil
@@ -53,14 +52,32 @@ func (a *AuthInterceptor) Unary() grpc.UnaryServerInterceptor {
 	}
 }
 
+func (a *AuthInterceptor) Stream() grpc.StreamServerInterceptor {
+	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		ctx, err := a.authorize(ss.Context())
+		if err != nil {
+			return err
+		}
+		return handler(srv, &wrappedStream{ServerStream: ss, ctx: ctx})
+	}
+}
+
+// wrappedStream replaces the context on an existing ServerStream.
+type wrappedStream struct {
+	grpc.ServerStream
+	ctx context.Context
+}
+
+func (w *wrappedStream) Context() context.Context {
+	return w.ctx
+}
+
 func (a *AuthInterceptor) authorize(ctx context.Context) (context.Context, error) {
-	// Достаём metadata
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return nil, status.Error(codes.Unauthenticated, "missing metadata")
 	}
 
-	// Достаём токен
 	values := md["authorization"]
 	if len(values) == 0 {
 		return nil, status.Error(codes.Unauthenticated, "missing authorization token")
@@ -68,21 +85,17 @@ func (a *AuthInterceptor) authorize(ctx context.Context) (context.Context, error
 
 	rawToken := strings.TrimPrefix(values[0], "Bearer ")
 
-	// Проверяем токен
 	token, err := a.verifier.Verify(ctx, rawToken)
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, "invalid token")
 	}
 
-	// Парсим claims
 	var claims Claims
 	if err := token.Claims(&claims); err != nil {
 		return nil, status.Error(codes.Unauthenticated, "invalid claims")
 	}
 
-	// Кладём в контекст
 	ctx = context.WithValue(ctx, UserIDKey, claims.Sub)
-
 	return ctx, nil
 }
 

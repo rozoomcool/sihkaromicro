@@ -10,15 +10,18 @@ import (
 
 func NewUnaryLoggerInterceptor(log *slog.Logger) grpc.UnaryServerInterceptor {
 	loggingOpts := []logging.Option{
-		logging.WithLogOnEvents(
-			logging.StartCall, logging.FinishCall,
-			// logging.PayloadReceived, logging.PayloadSent,
-		),
+		logging.WithLogOnEvents(logging.StartCall, logging.FinishCall),
 	}
 	return logging.UnaryServerInterceptor(InterceptorLogger(log), loggingOpts...)
 }
 
-// InterceptorLogger adapts slog logger to interceptor logger.
+func NewStreamLoggerInterceptor(log *slog.Logger) grpc.StreamServerInterceptor {
+	loggingOpts := []logging.Option{
+		logging.WithLogOnEvents(logging.StartCall, logging.FinishCall),
+	}
+	return logging.StreamServerInterceptor(InterceptorLogger(log), loggingOpts...)
+}
+
 func InterceptorLogger(l *slog.Logger) logging.Logger {
 	return logging.LoggerFunc(func(ctx context.Context, lvl logging.Level, msg string, fields ...any) {
 		l.Log(ctx, slog.Level(lvl), msg, fields...)

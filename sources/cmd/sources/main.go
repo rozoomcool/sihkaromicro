@@ -17,28 +17,22 @@ func main() {
 	cfg := config.MustLoad()
 	log := logger.SetupLogger(cfg.Env, cfg.LogFile)
 
-	log.Info("Start running application", "Mode", cfg.Env, "Logs", cfg.LogFile)
-
-	log.Info("Configs loaded")
-	log.Info("MINIO CFGS", slog.String("ID", cfg.MinIO.AccessKeyID), slog.String("Endpoint", cfg.MinIO.Endpoint))
+	log.Info("starting application", slog.String("env", cfg.Env))
 
 	db, err := database.New(cfg.DB)
 	if err != nil {
-		log.Error("Error initialize database", sl.Err(err))
-		panic(err)
+		log.Error("failed to initialize database", sl.Err(err))
+		os.Exit(1)
 	}
 
-	app := app.NewApp(cfg, log, db)
+	application := app.NewApp(cfg, log, db)
 
-	go func() { app.GRPCServer.MustRun() }()
-
-	// Graceful shutdown
+	go func() { application.GRPCServer.MustRun() }()
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
-
 	<-stop
 
-	app.GRPCServer.Stop()
-	log.Info("Gracefully stopped")
+	application.Stop()
+	log.Info("gracefully stopped")
 }

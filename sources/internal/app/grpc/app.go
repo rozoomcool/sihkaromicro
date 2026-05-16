@@ -9,7 +9,6 @@ import (
 	"github.com/rozoomcool/sihkaromicro/sources/internal/config"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/handler"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/interceptor"
-	"github.com/rozoomcool/sihkaromicro/sources/internal/repository"
 	"github.com/rozoomcool/sihkaromicro/sources/internal/service"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -23,34 +22,32 @@ type App struct {
 	cfg        *config.Config
 }
 
-// New creates new gRPC server app.
 func New(
 	sourceService service.SourceService,
-	repo repository.SourceRepository,
-	minio service.StorageService,
-	producer service.MessageProducer,
-	projectsClient service.ProjectsClient,
 	log *slog.Logger,
 	cfg *config.Config,
 ) *App {
-	// Setup auth interceptor
 	authInterceptor, err := interceptor.NewAuthInterceptor(context.Background(), cfg.Keycloak)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create auth interceptor: %v", err))
 	}
 
-	// Setup grpc server
-	gRPCServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
-		interceptor.NewUnaryRecoveryInterceptor(log),
-		interceptor.NewUnaryLoggerInterceptor(log),
-		authInterceptor.Unary(),
-	))
+	gRPCServer := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			interceptor.NewUnaryRecoveryInterceptor(log),
+			interceptor.NewUnaryLoggerInterceptor(log),
+			authInterceptor.Unary(),
+		),
+		grpc.ChainStreamInterceptor(
+			interceptor.NewStreamRecoveryInterceptor(log),
+			interceptor.NewStreamLoggerInterceptor(log),
+			authInterceptor.Stream(),
+		),
+	)
 
-	// Setup project handler
-	sourceHandler := handler.NewSourceHandler(sourceService, repo, projectsClient, minio, producer, log)
+	sourceHandler := handler.NewSourceHandler(sourceService, log)
 	sourceHandler.Register(gRPCServer)
 
-	// Setup health checking
 	healthcheck := health.NewServer()
 	healthgrpc.RegisterHealthServer(gRPCServer, healthcheck)
 	healthcheck.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
@@ -62,14 +59,12 @@ func New(
 	}
 }
 
-// MustRun runs gRPC server and panics if any error occurs.
 func (a *App) MustRun() {
 	if err := a.Run(); err != nil {
 		panic(err)
 	}
 }
 
-// Run runs gRPC server.
 func (a *App) Run() error {
 	const op = "grpcapp.Run"
 
@@ -87,7 +82,6 @@ func (a *App) Run() error {
 	return nil
 }
 
-// Stop stops gRPC server.
 func (a *App) Stop() {
 	const op = "grpcapp.Stop"
 

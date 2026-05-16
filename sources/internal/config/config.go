@@ -71,7 +71,7 @@ func MustLoad() *Config {
 		AccessKeyID:     os.Getenv("MINIO_ACCESS_KEY"),
 		SecretAccessKey: os.Getenv("MINIO_SECRET_KEY"),
 		BucketName:      os.Getenv("MINIO_BUCKET"),
-		UseSSL:          false,
+		UseSSL:          os.Getenv("MINIO_USE_SSL") == "true",
 	}
 
 	cfg.Kafka = KafkaConfig{

@@ -33,10 +33,12 @@ type Source struct {
 	OwnerID   string       `gorm:"column:owner_id;not null;index"`
 	Name      string       `gorm:"column:name;not null"`
 	Type      SourceType   `gorm:"column:type;not null"`
-	Status    SourceStatus `gorm:"column:status;not null;default:pending"`
+	Status    SourceStatus `gorm:"column:status;not null;default:uploading"`
 	Size      int64        `gorm:"column:size;not null"`
-	MinioPath string       `gorm:"column:minio_path;not null"`
+	MinioPath string       `gorm:"column:minio_path"`
 	JobID     string       `gorm:"column:job_id"`
+	Error     string       `gorm:"column:error"`
+	SourceURL string       `gorm:"column:source_url"`
 	CreatedAt time.Time    `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt time.Time    `gorm:"column:updated_at;autoUpdateTime"`
 }
@@ -51,6 +53,8 @@ func (s *Source) ToProto() *pb.Source {
 		Status:    sourceStatusToProto(s.Status),
 		Size:      s.Size,
 		JobId:     s.JobID,
+		Error:     s.Error,
+		SourceUrl: s.SourceURL,
 		CreatedAt: timestamppb.New(s.CreatedAt),
 		UpdatedAt: timestamppb.New(s.UpdatedAt),
 	}
@@ -75,6 +79,10 @@ func sourceTypeToProto(t SourceType) pb.SourceType {
 
 func sourceStatusToProto(s SourceStatus) pb.SourceStatus {
 	switch s {
+	case StatusUploading:
+		return pb.SourceStatus_SOURCE_STATUS_UPLOADING
+	case StatusUploaded:
+		return pb.SourceStatus_SOURCE_STATUS_UPLOADED
 	case StatusPending:
 		return pb.SourceStatus_SOURCE_STATUS_PENDING
 	case StatusProcessing:

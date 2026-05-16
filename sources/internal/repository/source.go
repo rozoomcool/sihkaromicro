@@ -13,7 +13,8 @@ type SourceRepository interface {
 	FindByProjectIDAndOwnerID(ctx context.Context, id, projectID int64, ownerID string) (*model.Source, error)
 	FindAllByProjectIDAndOwnerID(ctx context.Context, projectID int64, ownerID string) ([]model.Source, error)
 	CountByProjectIDAndOwnerID(ctx context.Context, projectID int64, ownerID string) (int64, error)
-	UpdateStatusByJobID(ctx context.Context, id int64, status model.SourceStatus, jobID string) error
+	// UpdateStatusBySourceID updates status and job_id for the given source ID.
+	UpdateStatusBySourceID(ctx context.Context, id int64, status model.SourceStatus, jobID string) error
 	UpdateMinioPath(ctx context.Context, id int64, minioPath string) error
 	DeleteByProjectIDAndOwnerID(ctx context.Context, id, projectID int64, ownerID string) error
 }
@@ -41,13 +42,13 @@ func (r *sourceRepository) FindByProjectIDAndOwnerID(ctx context.Context, id, pr
 	return source, nil
 }
 
-func (r *sourceRepository) UpdateStatusByJobID(ctx context.Context, id int64, status model.SourceStatus, jobID string) error {
+func (r *sourceRepository) UpdateStatusBySourceID(ctx context.Context, id int64, status model.SourceStatus, jobID string) error {
 	return apperr.FromGORM(r.db.WithContext(ctx).Model(&model.Source{}).
 		Where("id = ?", id).
 		Updates(map[string]any{
 			"status": status,
 			"job_id": jobID,
-		}).Error, "source UpdateStatusByJobID")
+		}).Error, "source UpdateStatusBySourceID")
 }
 
 func (r *sourceRepository) DeleteByProjectIDAndOwnerID(ctx context.Context, id, projectID int64, ownerID string) error {
@@ -69,7 +70,7 @@ func (r *sourceRepository) FindAllByProjectIDAndOwnerID(ctx context.Context, pro
 		Where("project_id = ? AND owner_id = ?", projectID, ownerID).
 		Find(&sources).Error
 	if err != nil {
-		return nil, apperr.FromGORM(err, "projectID or ownerID")
+		return nil, apperr.FromGORM(err, "source FindAllByProjectIDAndOwnerID")
 	}
 	return sources, nil
 }
@@ -80,14 +81,14 @@ func (r *sourceRepository) CountByProjectIDAndOwnerID(ctx context.Context, proje
 		Where("project_id = ? AND owner_id = ?", projectID, ownerID).
 		Count(&count).Error
 	if err != nil {
-		return 0, apperr.FromGORM(err, "projectID or ownerID")
+		return 0, apperr.FromGORM(err, "source CountByProjectIDAndOwnerID")
 	}
-	return count, err
+	return count, nil
 }
 
 func (r *sourceRepository) UpdateMinioPath(ctx context.Context, id int64, minioPath string) error {
 	return apperr.FromGORM(r.db.WithContext(ctx).
 		Model(&model.Source{}).
 		Where("id = ?", id).
-		Update("minio_path", minioPath).Error, "minioPath or sourceID")
+		Update("minio_path", minioPath).Error, "source UpdateMinioPath")
 }
