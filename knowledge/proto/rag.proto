@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package rag.v1;
+
+option go_package = "github.com/rozoomcool/sihkaromicro/proto/rag";
+
+service RAGService {
+  rpc Search(SearchRequest) returns (SearchResponse);
+  rpc Generate(GenerateRequest) returns (GenerateResponse);
+  rpc GenerateStream(GenerateRequest) returns (stream GenerateChunk);
+}
+
+message SearchRequest {
+  string query      = 1;
+  string owner_id   = 2;
+  int64  project_id = 3;
+  int32  top_k      = 4;
+}
+
+message SearchResult {
+  string content   = 1;
+  float  score     = 2;
+  int64  source_id = 3;
+  string metadata  = 4;
+}
+
+message SearchResponse {
+  repeated SearchResult results = 1;
+}
+
+message GenerateRequest {
+  string query      = 1;
+  string owner_id   = 2;
+  int64  project_id = 3;
+}
+
+message GenerateResponse {
+  string                answer  = 1;
+  repeated SearchResult sources = 2;
+}
+
+message GenerateChunk {
+  string text = 1;
+  bool   done = 2;
+}

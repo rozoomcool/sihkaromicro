@@ -164,7 +164,7 @@ func (s *sourceService) RetryJob(ctx context.Context, id, projectID int64, owner
 	}
 
 	jobID := uuid.New().String()
-	if err := s.publishCreateJob(ctx, jobID, ownerID, source.ID, source.MinioPath, string(source.Type)); err != nil {
+	if err := s.publishCreateJob(ctx, jobID, ownerID, source.ID, source.MinioPath, string(source.Type), source.SourceURL); err != nil {
 		s.log.Error("failed to publish retry job", sl.Err(err))
 		return "", apperr.Unavailable("message broker")
 	}
@@ -245,7 +245,7 @@ func (s *sourceService) UploadSource(ctx context.Context, req UploadSourceReques
 	}
 
 	jobID := uuid.New().String()
-	if err := s.publishCreateJob(ctx, jobID, req.OwnerID, source.ID, source.MinioPath, string(req.Type)); err != nil {
+	if err := s.publishCreateJob(ctx, jobID, req.OwnerID, source.ID, source.MinioPath, string(req.Type), req.SourceURL); err != nil {
 		// Upload succeeded — client can retry the job separately
 		log.Error("failed to publish job, client can retry via RetryJob", sl.Err(err))
 		success = true
@@ -289,7 +289,7 @@ func (s *sourceService) checkLimits(ctx context.Context, projectID int64, userID
 	return nil
 }
 
-func (s *sourceService) publishCreateJob(ctx context.Context, jobID, ownerID string, sourceID int64, minioPath, fileType string) error {
+func (s *sourceService) publishCreateJob(ctx context.Context, jobID, ownerID string, sourceID int64, minioPath, fileType, sourceURL string) error {
 	type CreateJobEvent struct {
 		JobID     string `json:"job_id"`
 		Type      string `json:"type"`
@@ -297,6 +297,7 @@ func (s *sourceService) publishCreateJob(ctx context.Context, jobID, ownerID str
 		SourceID  int64  `json:"source_id"`
 		MinioPath string `json:"minio_path"`
 		FileType  string `json:"file_type"`
+		SourceURL string `json:"source_url,omitempty"`
 	}
 	payload, err := json.Marshal(CreateJobEvent{
 		JobID:     jobID,
@@ -305,11 +306,12 @@ func (s *sourceService) publishCreateJob(ctx context.Context, jobID, ownerID str
 		SourceID:  sourceID,
 		MinioPath: minioPath,
 		FileType:  fileType,
+		SourceURL: sourceURL,
 	})
 	if err != nil {
 		return err
 	}
-	return s.producer.Publish(ctx, "jobs.create", jobID, string(payload))
+	return s.producer.Publish(ctx, "jobs.chunking", jobID, string(payload))
 }
 
 func (s *sourceService) publishCancelJob(ctx context.Context, jobID, ownerID string, sourceID int64) error {

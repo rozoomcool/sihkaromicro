@@ -111,6 +111,62 @@ services:
       retries: 5
       start_period: 10s
 
+  # ─── Knowledge Service ──────────────────────────────
+  knowledge:
+    build:
+      context: ./knowledge
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      GRPC_PORT: 50054
+      KAFKA_BROKERS: kafka:29092
+      DB_DSN: postgres://${RAG_DB_USER}:${RAG_DB_PASSWORD}@rag-db:5432/${RAG_DB_NAME}?sslmode=disable
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      KEYCLOAK_URL: http://keycloak:${KEYCLOAK_PORT}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    networks:
+      - gateway
+      - rag-db-network
+      - minio-network
+      - kafka-network
+    depends_on:
+      rag-db:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import socket; s=socket.socket(); s.connect(('localhost', 50054)); s.close()\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  # ─── RAG DB (pgvector) ────────────────────────────────
+  rag-db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${RAG_DB_NAME}
+      POSTGRES_USER: ${RAG_DB_USER}
+      POSTGRES_PASSWORD: ${RAG_DB_PASSWORD}
+    volumes:
+      - rag-db-data:/var/lib/postgresql/data
+    networks:
+      - rag-db-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${RAG_DB_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   # ─── Projects DB ─────────────────────────────────────
   projects-db:
     image: postgres:16-alpine
@@ -287,7 +343,9 @@ networks:
   kafka-network:
     internal: true
   tools-network:
-    driver: bridge 
+    driver: bridge
+  rag-db-network:
+    internal: true
 
 # ─── Volumes ───────────────────────────────────────────
 volumes:
@@ -295,3 +353,4 @@ volumes:
   sources-db-data:
   keycloak-db-data:
   minio-data:
+  rag-db-data:
